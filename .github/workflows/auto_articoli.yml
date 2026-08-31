@@ -2,8 +2,8 @@ name: Genera e Pubblica Notizie
 
 on:
   schedule:
-    - cron: '0 8,20 * * *' # Esegue lo script due volte al giorno (alle 08:00 e alle 20:00)
-  workflow_dispatch: # Consente di avviare l'automazione manualmente con un click da GitHub
+    - cron: '0 8,20 * * *'
+  workflow_dispatch:
 
 jobs:
   build:
@@ -36,4 +36,4 @@ jobs:
           git config --global user.name "Zampamania Bot"
           git config --global user.email "bot@users.noreply.github.com"
           git add .
-          git diff --staged --quiet || (git commit -m "Auto-generazione nuovo articolo pet" && git push)
+          git diff --staged --quiet || (git commit -m "Auto-generazione nuovo articolo pet" && git pull --rebase origin main && git push)
