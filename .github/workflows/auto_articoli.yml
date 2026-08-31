@@ -1,0 +1,39 @@
+name: Genera e Pubblica Notizie
+
+on:
+  schedule:
+    - cron: '0 8,20 * * *' # Esegue lo script due volte al giorno (alle 08:00 e alle 20:00)
+  workflow_dispatch: # Consente di avviare l'automazione manualmente con un click da GitHub
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Clona Repository
+        uses: actions/checkout@v4
+
+      - name: Configura Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Installa Dipendenze
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Esegui Script di Generazione
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python genera_articoli.py
+
+      - name: Esegui Commit e Push delle Modifiche
+        run: |
+          git config --global user.name "Zampamania Bot"
+          git config --global user.email "bot@users.noreply.github.com"
+          git add .
+          git diff --staged --quiet || (git commit -m "Auto-generazione nuovo articolo pet" && git push)
