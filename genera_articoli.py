@@ -2,10 +2,25 @@ import os
 import re
 import datetime
 import feedparser
+import random
 from google import genai
 
-# Fonte RSS di settore
-RSS_URL = "https://www.kodami.it/feed/"
+# Elenco delle 10 fonti RSS multiple (italiane e internazionali)
+RSS_SOURCES = [
+    "https://www.kodami.it/feed/",
+    "https://www.dogster.com/feed",
+    "https://www.catster.com/feed",
+    "https://www.zooborns.com/zooborns/rss.xml",
+    "https://www.petful.com/feed/",
+    "https://iheartdogs.com/feed",
+    "https://dogingtonpost.com/feed",
+    "https://goodnewsforpets.com/feed",
+    "https://www.sciencedaily.com/rss/plants_animals.xml",
+    "https://icatcare.org/feed/"
+]
+
+# Estrae casualmente una fonte diversa a ogni esecuzione del workflow
+RSS_URL = random.choice(RSS_SOURCES)
 
 def slugify(text):
     text = text.lower()
@@ -20,7 +35,7 @@ def main():
 
     client = genai.Client(api_key=api_key)
 
-    print("Controllo feed RSS...")
+    print(f"Controllo feed RSS dalla fonte: {RSS_URL}...")
     feed = feedparser.parse(RSS_URL)
     if not feed.entries:
         print("Nessun articolo trovato nel feed.")
@@ -42,19 +57,23 @@ def main():
 
     print(f"Elaborazione in corso per: {title}")
 
-    # Prompt aggiornato per includere sempre il link alla fonte
+    # Prompt aggiornato con gestione traduzione da fonti straniere e riscrittura originale
     prompt = f"""
-    Sei un redattore esperto per 'Zampamania', un portale italiano dedicato agli animali domestici, cani e gatti, e al risparmio per i proprietari.
-    Riscrivi la seguente notizia in modo originale, coinvolgente e professionale in lingua italiana, evitando qualsiasi plagio.
-    Struttura l'output in formato HTML puro (senza blocchi di codice markdown), usando tag <p> per i paragrafi e <h2> per eventuali sottotitoli.
-    IMPORTANTE: Alla fine dell'articolo, inserisci un link ben visibile che rimandi alla notizia o fonte originale usando esattamente questo URL: {original_link}. Crea un bottone o un testo evidenziato con stile (es. <a href="{original_link}" target="_blank" style="display:inline-block; background:#0284c7; color:#fff; padding:10px 20px; border-radius:5px; text-decoration:none; font-weight:600; margin-top:15px;">Guarda la notizia originale / Fonte</a>).
+    Sei un caporedattore ed esperto giornalista specializzato nel mondo degli animali domestici ('Zampamania'), cani e gatti, e nella cura dei pet.
+    Partendo dalle informazioni e dai temi trattati in questa notizia:
+    
+    REGOLE TASSATIVE:
+    1. TRADUZIONE E ADATTAMENTO: Se la fonte di partenza è in inglese o in un'altra lingua straniera, traduci i contenuti in un eccellente italiano giornalistico, adattando i termini tecnici veterinari o comportamentali in modo naturale.
+    2. RIELABORAZIONE ORIGINALE: Riscrivi la notizia in modo originale, coinvolgente e professionale, evitando qualsiasi plagio.
+    3. FORMATTAZIONE HTML: Struttura l'output in formato HTML puro (senza blocchi di codice markdown), usando tag <p> per i paragrafi e <h2> per eventuali sottotitoli.
+    4. LINK FONTE: Alla fine dell'articolo, inserisci un link ben visibile che rimandi alla notizia o fonte originale usando esattamente questo URL: {original_link}. Crea un bottone o un testo evidenziato con stile usando esattamente questo codice: <a href="{original_link}" target="_blank" style="display:inline-block; background:#0284c7; color:#fff; padding:10px 20px; border-radius:5px; text-decoration:none; font-weight:600; margin-top:15px;">Guarda la notizia originale / Fonte</a>.
     
     Titolo originale: {title}
     Contenuto originale: {summary}
     
     Restituisci la risposta seguendo rigorosamente questa struttura:
-    TITOLO_OTTIMIZZATO: [Inserisci qui un titolo accattivante]
-    DESCRIZIONE_SEO: [Una meta description di circa 150 caratteri]
+    TITOLO_OTTIMIZZATO: [Inserisci qui un titolo accattivante in italiano]
+    DESCRIZIONE_SEO: [Una meta description in italiano di circa 150 caratteri]
     CONTENUTO_HTML: [Il corpo dell'articolo formattato con tag HTML, inclusi il link finale]
     """
 
