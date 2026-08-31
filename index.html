@@ -52,25 +52,29 @@
         .nav-container {
             max-width: 1100px;
             margin: 0 auto;
-            padding: 15px 20px;
+            padding: 12px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
-        .logo {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            font-weight: 800;
-            font-size: 24px;
-            color: var(--dark);
-            text-decoration: none;
+        .logo-link {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--dark);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 800;
+            font-size: 20px;
         }
 
-        .logo span {
-            color: var(--primary);
+        .logo-link img {
+            height: 42px;
+            width: 42px;
+            object-fit: cover;
+            border-radius: 50%;
+            border: 2px solid var(--primary);
         }
 
         .btn-telegram-nav {
@@ -93,28 +97,38 @@
 
         /* Hero Section */
         .hero {
-            padding: 160px 20px 80px;
+            padding: 150px 20px 60px;
             background: linear-gradient(135deg, #fff7ed 0%, #fef3c7 100%);
             text-align: center;
         }
 
         .hero-content {
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
         }
 
+        .banner-img {
+            width: 100%;
+            max-width: 750px;
+            height: auto;
+            border-radius: 16px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            border: 1px solid var(--border);
+        }
+
         .hero h1 {
-            font-size: 44px;
+            font-size: 38px;
             font-weight: 800;
             color: var(--dark);
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             letter-spacing: -1px;
         }
 
         .hero p {
             font-size: 18px;
             color: var(--gray);
-            margin-bottom: 35px;
+            margin-bottom: 30px;
         }
 
         .btn-telegram-lg {
@@ -196,7 +210,7 @@
             font-size: 15px;
         }
 
-        /* Banner CTA Telegram */
+        /* Telegram CTA Banner */
         .cta-banner {
             max-width: 1000px;
             margin: 0 auto 80px;
@@ -252,27 +266,31 @@
 </head>
 <body>
 
+    <!-- Header -->
     <header>
         <div class="nav-container">
-            <a href="#" class="logo">
-                <i class="fa-solid fa-paw" style="color: var(--primary);"></i> Zampa<span>mania</span>
+            <a href="#" class="logo-link">
+                <img src="logo.jpg" alt="Zampamania Logo"> Zampamania
             </a>
-            <a href="https://t.me/TUO_CANALE" target="_blank" class="btn-telegram-nav">
+            <a href="https://t.me/zampamania_offerte" target="_blank" class="btn-telegram-nav">
                 <i class="fa-brands fa-telegram"></i> Canale Telegram
             </a>
         </div>
     </header>
 
+    <!-- Hero Section -->
     <section class="hero">
         <div class="hero-content">
+            <img src="banner.jpg" alt="Zampamania Banner" class="banner-img">
             <h1>Risparmia sugli acquisti per i tuoi amici a 4 zampe 🐾</h1>
             <p>Ogni giorno selezioniamo le migliori offerte, codici sconto esclusivi e promozioni imperdibili su cibo, giochi e accessori per cani e gatti.</p>
-            <a href="https://t.me/TUO_CANALE" target="_blank" class="btn-telegram-lg">
+            <a href="https://t.me/zampamania_offerte" target="_blank" class="btn-telegram-lg">
                 <i class="fa-brands fa-telegram"></i> Unisciti al Canale Offerte Gratis
             </a>
         </div>
     </section>
 
+    <!-- Features Section -->
     <section class="features">
         <div class="section-title">
             <h2>Perché seguire Zampamania?</h2>
@@ -297,14 +315,16 @@
         </div>
     </section>
 
+    <!-- Telegram CTA Banner -->
     <div class="cta-banner">
         <h2>Non perdere neanche un'offerta!</h2>
         <p>Entra nel nostro canale Telegram: le promozioni migliori durano solo poche ore.</p>
-        <a href="https://t.me/TUO_CANALE" target="_blank" class="btn-white">
+        <a href="https://t.me/zampamania_offerte" target="_blank" class="btn-white">
             <i class="fa-brands fa-telegram" style="color: var(--secondary);"></i> Entra nel Canale Telegram
         </a>
     </div>
 
+    <!-- Footer -->
     <footer>
         <p>&copy; 2026 Zampamania.com - Tutti i diritti riservati.</p>
         <p>Questo sito partecipa ai programmi di affiliazione per garantire contenuti gratuiti.</p>
