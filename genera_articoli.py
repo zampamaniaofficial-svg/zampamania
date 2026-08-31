@@ -4,7 +4,7 @@ import datetime
 import feedparser
 from google import genai
 
-# Fonte RSS di settore (puoi sostituirla con qualsiasi feed di notizie sugli animali)
+# Fonte RSS di settore
 RSS_URL = "https://www.kodami.it/feed/"
 
 def slugify(text):
@@ -30,6 +30,7 @@ def main():
     entry = feed.entries[0]
     title = entry.title
     summary = entry.get('summary', '')
+    original_link = entry.get('link', '#')
 
     slug = slugify(title)
     filename = f"articoli/{slug}.html"
@@ -41,11 +42,12 @@ def main():
 
     print(f"Elaborazione in corso per: {title}")
 
-    # Prompt ottimizzato per l'IA
+    # Prompt aggiornato per includere sempre il link alla fonte
     prompt = f"""
     Sei un redattore esperto per 'Zampamania', un portale italiano dedicato agli animali domestici, cani e gatti, e al risparmio per i proprietari.
     Riscrivi la seguente notizia in modo originale, coinvolgente e professionale in lingua italiana, evitando qualsiasi plagio.
     Struttura l'output in formato HTML puro (senza blocchi di codice markdown), usando tag <p> per i paragrafi e <h2> per eventuali sottotitoli.
+    IMPORTANTE: Alla fine dell'articolo, inserisci un link ben visibile che rimandi alla notizia o fonte originale usando esattamente questo URL: {original_link}. Crea un bottone o un testo evidenziato con stile (es. <a href="{original_link}" target="_blank" style="display:inline-block; background:#0284c7; color:#fff; padding:10px 20px; border-radius:5px; text-decoration:none; font-weight:600; margin-top:15px;">Guarda la notizia originale / Fonte</a>).
     
     Titolo originale: {title}
     Contenuto originale: {summary}
@@ -53,7 +55,7 @@ def main():
     Restituisci la risposta seguendo rigorosamente questa struttura:
     TITOLO_OTTIMIZZATO: [Inserisci qui un titolo accattivante]
     DESCRIZIONE_SEO: [Una meta description di circa 150 caratteri]
-    CONTENUTO_HTML: [Il corpo dell'articolo formattato con tag HTML]
+    CONTENUTO_HTML: [Il corpo dell'articolo formattato con tag HTML, inclusi il link finale]
     """
 
     response = client.models.generate_content(
