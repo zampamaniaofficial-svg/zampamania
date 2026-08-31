@@ -3,10 +3,312 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zampamania - Offerte e Consigli Pet</title>
+    <title>Zampamania 🐾 Offerte, Sconti e Consigli per Animali</title>
+    <meta name="description" content="Il canale e blog n.1 in Italia per risparmiare su cibo, giochi e accessori per cani e gatti. Offerte lampo e codici sconto aggiornati ogni giorno!">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root {
+            --primary: #f97316;
+            --primary-dark: #ea580c;
+            --secondary: #0284c7;
+            --dark: #0f172a;
+            --gray: #64748b;
+            --light: #f8fafc;
+            --border: #e2e8f0;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--dark);
+            background-color: #ffffff;
+            line-height: 1.6;
+        }
+
+        h1, h2, h3 {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        /* Header */
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
+            z-index: 1000;
+        }
+
+        .nav-container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 800;
+            font-size: 24px;
+            color: var(--dark);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .logo span {
+            color: var(--primary);
+        }
+
+        .btn-telegram-nav {
+            background-color: var(--secondary);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.2s;
+        }
+
+        .btn-telegram-nav:hover {
+            background-color: #0369a1;
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 160px 20px 80px;
+            background: linear-gradient(135deg, #fff7ed 0%, #fef3c7 100%);
+            text-align: center;
+        }
+
+        .hero-content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .hero h1 {
+            font-size: 44px;
+            font-weight: 800;
+            color: var(--dark);
+            margin-bottom: 20px;
+            letter-spacing: -1px;
+        }
+
+        .hero p {
+            font-size: 18px;
+            color: var(--gray);
+            margin-bottom: 35px;
+        }
+
+        .btn-telegram-lg {
+            background-color: var(--secondary);
+            color: white;
+            padding: 16px 32px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 18px;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 10px 25px -5px rgba(2, 132, 199, 0.4);
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        .btn-telegram-lg:hover {
+            transform: translateY(-2px);
+            background-color: #0369a1;
+        }
+
+        /* Features Section */
+        .features {
+            padding: 80px 20px;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .section-title {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        .section-title h2 {
+            font-size: 32px;
+            font-weight: 800;
+            margin-bottom: 10px;
+        }
+
+        .section-title p {
+            color: var(--gray);
+            font-size: 16px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+        }
+
+        .card {
+            background: var(--light);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 35px 30px;
+            text-align: left;
+            transition: transform 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-icon {
+            font-size: 28px;
+            color: var(--primary);
+            margin-bottom: 20px;
+        }
+
+        .card h3 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .card p {
+            color: var(--gray);
+            font-size: 15px;
+        }
+
+        /* Banner CTA Telegram */
+        .cta-banner {
+            max-width: 1000px;
+            margin: 0 auto 80px;
+            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+            border-radius: 24px;
+            padding: 60px 40px;
+            text-align: center;
+            color: white;
+        }
+
+        .cta-banner h2 {
+            font-size: 32px;
+            margin-bottom: 15px;
+        }
+
+        .cta-banner p {
+            font-size: 18px;
+            margin-bottom: 30px;
+            opacity: 0.9;
+        }
+
+        .btn-white {
+            background-color: white;
+            color: var(--secondary);
+            padding: 16px 32px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 16px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            transition: background 0.2s;
+        }
+
+        .btn-white:hover {
+            background-color: #f1f5f9;
+        }
+
+        /* Footer */
+        footer {
+            background: var(--dark);
+            color: #94a3b8;
+            padding: 40px 20px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        footer p {
+            margin-bottom: 10px;
+        }
+    </style>
 </head>
-<body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
-    <h1>Zampamania 🐾</h1>
-    <p>Il blog e il canale offerte dedicati ai nostri amici a 4 zampe è in arrivo!</p>
+<body>
+
+    <header>
+        <div class="nav-container">
+            <a href="#" class="logo">
+                <i class="fa-solid fa-paw" style="color: var(--primary);"></i> Zampa<span>mania</span>
+            </a>
+            <a href="https://t.me/TUO_CANALE" target="_blank" class="btn-telegram-nav">
+                <i class="fa-brands fa-telegram"></i> Canale Telegram
+            </a>
+        </div>
+    </header>
+
+    <section class="hero">
+        <div class="hero-content">
+            <h1>Risparmia sugli acquisti per i tuoi amici a 4 zampe 🐾</h1>
+            <p>Ogni giorno selezioniamo le migliori offerte, codici sconto esclusivi e promozioni imperdibili su cibo, giochi e accessori per cani e gatti.</p>
+            <a href="https://t.me/TUO_CANALE" target="_blank" class="btn-telegram-lg">
+                <i class="fa-brands fa-telegram"></i> Unisciti al Canale Offerte Gratis
+            </a>
+        </div>
+    </section>
+
+    <section class="features">
+        <div class="section-title">
+            <h2>Perché seguire Zampamania?</h2>
+            <p>Il punto di riferimento per chi ama i propri animali senza rinunciare al risparmio.</p>
+        </div>
+        <div class="grid">
+            <div class="card">
+                <div class="card-icon"><i class="fa-solid fa-bolt"></i></div>
+                <h3>Offerte in Tempo Reale</h3>
+                <p>Segnaliamo sconti lampo e errori di prezzo non appena vengono pubblicati dai migliori store online.</p>
+            </div>
+            <div class="card">
+                <div class="card-icon"><i class="fa-solid fa-tags"></i></div>
+                <h3>Codici Sconto Esclusivi</h3>
+                <p>Coupon dedicati e promozioni speciali per risparmiare su crocchette, lettiere e accessori per pet.</p>
+            </div>
+            <div class="card">
+                <div class="card-icon"><i class="fa-solid fa-shield-cat"></i></div>
+                <h3>100% Affidabile</h3>
+                <p>Selezioniamo solo negozi sicuri e verificati come Amazon, Zooplus, Arcaplanet e molti altri.</p>
+            </div>
+        </div>
+    </section>
+
+    <div class="cta-banner">
+        <h2>Non perdere neanche un'offerta!</h2>
+        <p>Entra nel nostro canale Telegram: le promozioni migliori durano solo poche ore.</p>
+        <a href="https://t.me/TUO_CANALE" target="_blank" class="btn-white">
+            <i class="fa-brands fa-telegram" style="color: var(--secondary);"></i> Entra nel Canale Telegram
+        </a>
+    </div>
+
+    <footer>
+        <p>&copy; 2026 Zampamania.com - Tutti i diritti riservati.</p>
+        <p>Questo sito partecipa ai programmi di affiliazione per garantire contenuti gratuiti.</p>
+    </footer>
+
 </body>
 </html>
