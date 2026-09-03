@@ -6,8 +6,12 @@ import random
 import urllib.parse
 import urllib.request
 import json
+import socket
 import feedparser
 from google import genai
+
+# Timeout globale di sicurezza sulle connessioni di rete
+socket.setdefaulttimeout(15)
 
 # Elenco di 10 fonti RSS ESCLUSIVAMENTE focalizzate su cani, gatti e pet domestici
 RSS_SOURCES = [
@@ -30,7 +34,7 @@ def slugify(text):
     return text
 
 def get_wikimedia_image(query_str):
-    """Cerca una vera foto professionale su Wikimedia Commons con fallback sicuro."""
+    """Cerca una vera foto professionale su Wikimedia Commons con timeout e fallback sicuro."""
     clean_query = re.sub(r'[^a-zA-Z0-9\s]', '', query_str)
     if not clean_query.strip():
         clean_query = "dog and cat"
@@ -43,7 +47,7 @@ def get_wikimedia_image(query_str):
         headers={'User-Agent': 'ZampamaniaNewsBot/2.0 (Professional Pet Journal)'}
     )
     try:
-        with urllib.request.urlopen(req) as response:
+        with urllib.request.urlopen(req, timeout=10) as response:
             data = json.loads(response.read().decode('utf-8'))
             pages = data.get("query", {}).get("pages", {})
             for page_id, page in pages.items():
@@ -53,7 +57,7 @@ def get_wikimedia_image(query_str):
                     if img_url and any(img_url.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png']):
                         return img_url
     except Exception as e:
-        print(f"Errore ricerca immagine Wikimedia: {e}")
+        print(f"Errore o timeout nella ricerca immagine Wikimedia: {e}")
     
     return "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Golde33443.jpg/800px-Golde33443.jpg"
 
@@ -68,9 +72,14 @@ def main():
     rss_url = random.choice(RSS_SOURCES)
     print(f"Controllo feed RSS dalla fonte: {rss_url}...")
     
-    feed = feedparser.parse(rss_url)
+    try:
+        feed = feedparser.parse(rss_url)
+    except Exception as e:
+        print(f"Errore nel parsing del feed RSS {rss_url}: {e}")
+        return
+
     if not feed.entries:
-        print("Nessun articolo trovato nel feed.")
+        print("Nessun articolo trovato nel feed o feed non raggiungibile.")
         return
 
     entries = list(feed.entries)
@@ -134,25 +143,34 @@ def main():
     [Il corpo dell'articolo in HTML con i tag <p> e <h2> e il link finale]
     """
 
-    # Retry robusto con attesa esponenziale per superare i picchi di traffico (503)
+    # Strategia di Fallback Multi-Modello (se 3.6-flash dà 503, passa a 1.5-flash)
+    models_to_try = ['gemini-3.6-flash', 'gemini-1.5-flash']
     response = None
-    max_retries = 5
-    for attempt in range(max_retries):
-        try:
-            print(f"Generazione con gemini-3.6-flash (Tentativo {attempt + 1}/{max_retries})...")
-            response = client.models.generate_content(
-                model='gemini-3.6-flash',
-                contents=prompt,
-            )
+
+    for model_name in models_to_try:
+        print(f"Tentativo di generazione utilizzando il modello: {model_name}")
+        success_model = False
+        for attempt in range(3):
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=prompt,
+                )
+                success_model = True
+                break
+            except Exception as e:
+                print(f"Modello {model_name} - Tentativo {attempt + 1}/3 fallito: {e}")
+                if attempt < 2:
+                    time.sleep(5)
+        
+        if success_model:
+            print(f"Generazione riuscita con successo usando {model_name}!")
             break
-        except Exception as e:
-            print(f"Tentativo {attempt + 1} fallito: {e}")
-            if attempt < max_retries - 1:
-                wait_time = (attempt + 1) * 15  # 15s, 30s, 45s, 60s
-                print(f"Servizio temporaneamente occupato (503). Attendo {wait_time} secondi prima di riprovare...")
-                time.sleep(wait_time)
-            else:
-                raise RuntimeError("Impossibile completare la generazione: i server sono sovraccarichi. Riprova più tardi.")
+        else:
+            print(f"Il modello {model_name} non è disponibile, provo con il modello successivo...")
+
+    if not response:
+        raise RuntimeError("Impossibile completare la generazione: tutti i modelli configurati sono attualmente sovraccarichi.")
     
     text_response = response.text
     
