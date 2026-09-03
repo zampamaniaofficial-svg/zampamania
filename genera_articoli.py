@@ -57,12 +57,12 @@ def slugify(text):
     return text
 
 def get_wikimedia_image(query_str, is_cat_article=False):
-    # Fallback differenziato: se l'articolo parla di gatti usa un gatto, altrimenti un cane
-    fallback_image = "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Cat03.jpg/800px-Cat03.jpg" if is_cat_article else "https://upload.wikimedia.org/wikipedia/commons/4/47/American_Eskimo_Dog.jpg"
+    # Fallback sicuri e diretti nel caso la ricerca API non trovi riscontro
+    fallback_image = "https://upload.wikimedia.org/wikipedia/commons/3/3a/Cat03.jpg" if is_cat_article else "https://upload.wikimedia.org/wikipedia/commons/4/47/American_Eskimo_Dog.jpg"
     
     clean_query = re.sub(r'[^a-zA-Z0-9\s]', '', query_str)
     if not clean_query.strip():
-        clean_query = "cat" if is_cat_article else "dog"
+        clean_query = "domestic cat" if is_cat_article else "dog"
         
     encoded_query = urllib.parse.quote(clean_query)
     url = f"https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch={encoded_query}&gsrnamespace=6&gsrlimit=10&prop=imageinfo&iiprop=url&format=json"
@@ -80,7 +80,6 @@ def get_wikimedia_image(query_str, is_cat_article=False):
                 if imageinfo:
                     img_url = imageinfo[0].get("url")
                     if img_url and any(img_url.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png']):
-                        # Controllo di coerenza: se l'articolo è sui gatti, evita immagini con 'dog' nell'URL se possibile
                         img_lower = img_url.lower()
                         if is_cat_article and 'dog' in img_lower and 'cat' not in img_lower:
                             continue
@@ -172,7 +171,7 @@ def main():
     REGOLE TASSATIVE:
     1. L'articolo deve trattare ESCLUSIVAMENTE di cani, gatti o animali domestici.
     2. Struttura l'output in formato HTML puro (senza blocchi di codice markdown), usando tag <p> per i paragrafi e <h2> per eventuali sottotitoli.
-    3. Fornisci 2 o 3 parole chiave in inglese strettamente coerenti con il soggetto principale della notizia (es. se la notizia parla di gatti, scrivi obbligatoriamente "cute cat" o "domestic cat", evitando qualsiasi riferimento a cani se il protagonista è un gatto).
+    3. Fornisci MASSIMO 2 o 3 parole chiave in inglese brevi e semplici per la foto (es. "cute cat" oppure "happy dog"). NON inserire titoli o frasi lunghe.
     4. Alla fine dell'articolo, inserisci il link alla fonte originale usando esattamente questo codice HTML: <a href="{original_link}" target="_blank" style="display:inline-block; background:#0284c7; color:#fff; padding:10px 20px; border-radius:5px; text-decoration:none; font-weight:600; margin-top:15px;">Guarda la notizia originale / Fonte</a>.
     
     Titolo originale: {title}
@@ -184,7 +183,7 @@ def main():
     ===SEO===
     [Meta description di circa 150 caratteri in italiano]
     ===KEYWORD===
-    [Parole chiave in inglese rigorosamente coerenti al soggetto, es. cute cat resting]
+    [2 o 3 parole chiave in inglese brevi, es. cute cat]
     ===CONTENUTO===
     [Il corpo dell'articolo in HTML con i tag <p> e <h2> e il link finale]
     """
@@ -243,11 +242,15 @@ def main():
         image_keyword = "cute cat"
         html_content = f"<p>{summary}</p><a href='{original_link}' target='_blank' style='display:inline-block; background:#0284c7; color:#fff; padding:10px 20px; border-radius:5px; text-decoration:none; font-weight:600; margin-top:15px;'>Fonte originale</a>"
 
-    # Determina se l'articolo parla prevalentemente di gatti per filtrare correttamente l'immagine
+    # Verifica se l'articolo parla di gatti
     combined_text_check = (new_title + " " + new_desc + " " + image_keyword).lower()
     is_cat = any(k in combined_text_check for k in ['gatto', 'gatti', 'cat', 'cats', 'kitten', 'felin', 'micio'])
 
-    print(f"Ricerca foto reale con chiave: '{image_keyword}' (Target gatto: {is_cat})...")
+    # SICUREZZA: se la keyword restituita è una frase lunga o contiene parole italiane, la normalizziamo
+    if len(image_keyword.split()) > 4 or any(w in image_keyword.lower() for w in ['il', 'la', 'di', 'che', 'e', 'un', 'le', 'del', 'sette', 'storie']):
+        image_keyword = "cute cat" if is_cat else "dog"
+
+    print(f"Ricerca foto reale con chiave sanificata: '{image_keyword}' (Target gatto: {is_cat})...")
     image_url = get_wikimedia_image(image_keyword, is_cat_article=is_cat)
 
     featured_image_html = f'<div style="text-align: center; margin-bottom: 25px;"><img src="{image_url}" alt="{new_title}" style="width: 100%; max-height: 450px; object-fit: cover; border-radius: 8px;"></div>'
