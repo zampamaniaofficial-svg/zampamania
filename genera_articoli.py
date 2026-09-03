@@ -56,16 +56,56 @@ def slugify(text):
     text = re.sub(r'[\s-]+', '-', text).strip('-')
     return text
 
-def get_wikimedia_image(query_str, is_cat_article=False):
-    # Fallback sicuri e diretti nel caso la ricerca API non trovi riscontro
-    fallback_image = "https://upload.wikimedia.org/wikipedia/commons/3/3a/Cat03.jpg" if is_cat_article else "https://upload.wikimedia.org/wikipedia/commons/4/47/American_Eskimo_Dog.jpg"
+def get_existing_images():
+    """Scansiona la home e gli articoli esistenti per raccogliere i link delle immagini già usate."""
+    used = set()
+    if os.path.exists("index.html"):
+        try:
+            with open("index.html", "r", encoding="utf-8") as f:
+                content = f.read()
+                srcs = re.findall(r'<img[^>]+src="([^">]+)"', content)
+                for s in srcs:
+                    used.add(s)
+        except Exception:
+            pass
+            
+    if os.path.exists("articoli"):
+        for fname in os.listdir("articoli"):
+            if fname.endswith(".html"):
+                try:
+                    with open(os.path.join("articoli", fname), "r", encoding="utf-8") as f:
+                        content = f.read()
+                        srcs = re.findall(r'<img[^>]+src="([^">]+)"', content)
+                        for s in srcs:
+                            used.add(s)
+                except Exception:
+                    pass
+    return used
+
+def get_wikimedia_image(query_str, is_cat_article=False, used_images=None):
+    if used_images is None:
+        used_images = set()
+        
+    # Pool di fallback differenziati per evitare ripetizioni fisse
+    cat_fallbacks = [
+        "https://upload.wikimedia.org/wikipedia/commons/3/3a/Cat03.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/b/b6/Felis_catus-cat_on_snow.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/4/4d/Cat_November_2010-1a.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/6/68/Orange_tabby_cat_sitting_on_fallen_leaves-Hisashi-01A.jpg"
+    ]
+    dog_fallbacks = [
+        "https://upload.wikimedia.org/wikipedia/commons/4/47/American_Eskimo_Dog.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/9/90/Labrador_Retriever_portrait.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/f/f8/Full_size_border_collie.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/3/34/Labrador_on_Quantock_Hills.jpg"
+    ]
     
     clean_query = re.sub(r'[^a-zA-Z0-9\s]', '', query_str)
     if not clean_query.strip():
-        clean_query = "domestic cat" if is_cat_article else "dog"
+        clean_query = "domestic cat portrait" if is_cat_article else "dog portrait"
         
     encoded_query = urllib.parse.quote(clean_query)
-    url = f"https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch={encoded_query}&gsrnamespace=6&gsrlimit=10&prop=imageinfo&iiprop=url&format=json"
+    url = f"https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch={encoded_query}&gsrnamespace=6&gsrlimit=20&prop=imageinfo&iiprop=url&format=json"
     
     req = urllib.request.Request(
         url, 
@@ -81,13 +121,24 @@ def get_wikimedia_image(query_str, is_cat_article=False):
                     img_url = imageinfo[0].get("url")
                     if img_url and any(img_url.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png']):
                         img_lower = img_url.lower()
+                        # Coerenza soggetto
                         if is_cat_article and 'dog' in img_lower and 'cat' not in img_lower:
                             continue
-                        return img_url
+                        if not is_cat_article and 'cat' in img_lower and 'dog' not in img_lower:
+                            continue
+                        # Evita immagini già usate in precedenza
+                        if img_url not in used_images:
+                            return img_url
     except Exception as e:
         print(f"Errore o timeout nella ricerca immagine Wikimedia: {e}")
     
-    return fallback_image
+    # Seleziona un fallback sicuro non ancora utilizzato
+    fallbacks = cat_fallbacks if is_cat_article else dog_fallbacks
+    for fb in fallbacks:
+        if fb not in used_images:
+            return fb
+            
+    return fallbacks[0]
 
 def main():
     api_key = os.environ.get("GEMINI_API_KEY")
@@ -95,6 +146,10 @@ def main():
         raise ValueError("API Key non trovata nelle variabili d'ambiente.")
 
     client = genai.Client(api_key=api_key)
+
+    # Raccoglie le immagini già utilizzate nel sito
+    used_images = get_existing_images()
+    print(ミア := f"Immagini già in uso rilevate: {len(used_images)}")
 
     shuffled_sources = list(RSS_SOURCES)
     random.shuffle(shuffled_sources)
@@ -171,7 +226,7 @@ def main():
     REGOLE TASSATIVE:
     1. L'articolo deve trattare ESCLUSIVAMENTE di cani, gatti o animali domestici.
     2. Struttura l'output in formato HTML puro (senza blocchi di codice markdown), usando tag <p> per i paragrafi e <h2> per eventuali sottotitoli.
-    3. Fornisci MASSIMO 2 o 3 parole chiave in inglese brevi e semplici per la foto (es. "cute cat" oppure "happy dog"). NON inserire titoli o frasi lunghe.
+    3. Fornisci MASSIMO 2 o 3 parole chiave in inglese brevi e semplici per la foto (es. "cute cat portrait" oppure "happy puppy dog"). NON inserire titoli o frasi lunghe.
     4. Alla fine dell'articolo, inserisci il link alla fonte originale usando esattamente questo codice HTML: <a href="{original_link}" target="_blank" style="display:inline-block; background:#0284c7; color:#fff; padding:10px 20px; border-radius:5px; text-decoration:none; font-weight:600; margin-top:15px;">Guarda la notizia originale / Fonte</a>.
     
     Titolo originale: {title}
@@ -234,24 +289,24 @@ def main():
         
         new_title = title_part if title_part else title
         new_desc = seo_part if seo_part else summary[:150]
-        image_keyword = keyword_part if keyword_part else "cute cat"
+        image_keyword = keyword_part if keyword_part else "cute pet"
     except Exception as e:
         print(f"Errore nel parsing della risposta IA: {e}. Uso valori di fallback.")
         new_title = title
         new_desc = summary[:150] if summary else "Notizia dal mondo dei pet."
-        image_keyword = "cute cat"
+        image_keyword = "cute pet"
         html_content = f"<p>{summary}</p><a href='{original_link}' target='_blank' style='display:inline-block; background:#0284c7; color:#fff; padding:10px 20px; border-radius:5px; text-decoration:none; font-weight:600; margin-top:15px;'>Fonte originale</a>"
 
     # Verifica se l'articolo parla di gatti
     combined_text_check = (new_title + " " + new_desc + " " + image_keyword).lower()
     is_cat = any(k in combined_text_check for k in ['gatto', 'gatti', 'cat', 'cats', 'kitten', 'felin', 'micio'])
 
-    # SICUREZZA: se la keyword restituita è una frase lunga o contiene parole italiane, la normalizziamo
+    # Sanificazione keyword se troppo lunga o in italiano
     if len(image_keyword.split()) > 4 or any(w in image_keyword.lower() for w in ['il', 'la', 'di', 'che', 'e', 'un', 'le', 'del', 'sette', 'storie']):
-        image_keyword = "cute cat" if is_cat else "dog"
+        image_keyword = "cute domestic cat" if is_cat else "cute dog portrait"
 
-    print(f"Ricerca foto reale con chiave sanificata: '{image_keyword}' (Target gatto: {is_cat})...")
-    image_url = get_wikimedia_image(image_keyword, is_cat_article=is_cat)
+    print(f"Ricerca foto inedita con chiave: '{image_keyword}' (Target gatto: {is_cat})...")
+    image_url = get_wikimedia_image(image_keyword, is_cat_article=is_cat, used_images=used_images)
 
     featured_image_html = f'<div style="text-align: center; margin-bottom: 25px;"><img src="{image_url}" alt="{new_title}" style="width: 100%; max-height: 450px; object-fit: cover; border-radius: 8px;"></div>'
     html_content = featured_image_html + html_content
