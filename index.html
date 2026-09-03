@@ -37,7 +37,7 @@
             font-family: 'Plus Jakarta Sans', sans-serif;
         }
 
-        /* Header Editoriale */
+        /* Header Pulito (senza pulsante) */
         header {
             position: fixed;
             top: 0;
@@ -79,7 +79,7 @@
 
         .nav-menu {
             display: flex;
-            gap: 20px;
+            gap: 25px;
             list-style: none;
         }
 
@@ -95,28 +95,37 @@
             color: var(--secondary);
         }
 
-        .btn-telegram-nav {
-            background-color: var(--secondary);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 50px;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: background 0.2s;
+        /* Hero Section d'impatto */
+        .hero-section {
+            background: linear-gradient(135deg, #fff7ed 0%, #fef3c7 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 130px 20px 40px;
+            text-align: center;
         }
 
-        .btn-telegram-nav:hover {
-            background-color: #0369a1;
+        .hero-content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .hero-content h1 {
+            font-size: 36px;
+            font-weight: 800;
+            color: var(--dark);
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
+        }
+
+        .hero-content p {
+            font-size: 17px;
+            color: var(--gray);
+            line-height: 1.5;
         }
 
         /* Magazine Layout (Due Colonne) */
         .magazine-container {
             max-width: 1200px;
-            margin: 110px auto 60px;
+            margin: 40px auto 60px;
             padding: 0 20px;
             display: grid;
             grid-template-columns: 2.2fr 1fr;
@@ -129,6 +138,9 @@
             }
             .nav-menu {
                 display: none;
+            }
+            .hero-content h1 {
+                font-size: 28px;
             }
         }
 
@@ -237,7 +249,7 @@
 </head>
 <body>
 
-    <!-- Header Editoriale -->
+    <!-- Header Pulito -->
     <header>
         <div class="nav-container">
             <a href="index.html" class="logo-link">
@@ -249,20 +261,25 @@
                 <li><a href="#">Salute & Benessere</a></li>
                 <li><a href="#">Curiosità</a></li>
             </ul>
-            <a href="https://t.me/zampamania" target="_blank" class="btn-telegram-nav">
-                <i class="fa-brands fa-telegram"></i> Canale Telegram
-            </a>
         </div>
     </header>
+
+    <!-- Hero Section d'impatto -->
+    <section class="hero-section">
+        <div class="hero-content">
+            <h1>Risparmia sugli acquisti per i tuoi amici a 4 zampe 🐾</h1>
+            <p>Il punto di riferimento in Italia per scoprire offerte lampo, codici sconto esclusivi e notizie imperdibili su cibo, giochi e accessori per cani e gatti.</p>
+        </div>
+    </section>
 
     <!-- Main Container a Due Colonne -->
     <div class="magazine-container">
         
         <!-- Colonna di Sinistra: Ultime Notizie -->
         <main>
-            <h2 style="font-size: 26px; margin-bottom: 20px; color: var(--dark);">Ultime Notizie dal Blog</h2>
+            <h2 style="font-size: 24px; margin-bottom: 20px; color: var(--dark);">Ultime Notizie dal Blog</h2>
             <div class="news-feed">
-                <!-- Il python script inietterà qui le schede articolo (.news-card) -->
+                <!-- Lo script Python inietterà qui gli articoli in automatico -->
             </div>
         </main>
 
