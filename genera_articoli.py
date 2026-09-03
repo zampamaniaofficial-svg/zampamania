@@ -55,8 +55,26 @@ def get_wikimedia_image(query_str):
     except Exception as e:
         print(f"Errore ricerca immagine Wikimedia: {e}")
     
-    # Immagine di fallback garantita (un dolcissimo cane/cucciolo)
     return "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Golde33443.jpg/800px-Golde33443.jpg"
+
+def generate_with_fallback(client, prompt):
+    """Tenta la generazione con il modello principale e, in caso di errore 503, passa ai modelli di fallback."""
+    models_to_try = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-1.5-flash']
+    
+    for model_name in models_to_try:
+        for attempt in range(2): # 2 tentativi per modello
+            try:
+                print(f"Tentativo con il modello {model_name} (Tentativo {attempt + 1})...")
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=prompt,
+                )
+                return response
+            except Exception as e:
+                print(f"Modello {model_name} fallito: {e}")
+                time.sleep(5)
+                
+    raise RuntimeError("Tutti i modelli Gemini disponibili sono attualmente sovraccarichi. Riprova più tardi.")
 
 def main():
     api_key = os.environ.get("GEMINI_API_KEY")
@@ -81,7 +99,6 @@ def main():
     slug = ""
     filename = ""
     
-    # Cerca un articolo non ancora pubblicato che riguardi specificamente cani o gatti
     for entry in entries:
         title = entry.title
         summary = entry.get('summary', '')
@@ -89,7 +106,6 @@ def main():
         temp_slug = slugify(title)
         temp_filename = f"articoli/{temp_slug}.html"
         
-        # Filtro rapido a livello di titolo/sommario: deve contenere parole chiave su cani o gatti
         text_to_check = (title + " " + summary).lower()
         is_dog_or_cat = any(keyword in text_to_check for keyword in [
             'cane', 'cani', 'dog', 'dogs', 'puppy', 'puppies', 'cucciolo', 'cuccioli',
@@ -113,14 +129,13 @@ def main():
 
     print(f"Trovato articolo valido: {title}")
 
-    # Prompt strutturato rigidamente con tag netti per evitare errori di parsing
     prompt = f"""
     Sei il caporedattore del magazine online 'Zampamania', esperto in cinofilia e felinologia.
     Riscrivi la seguente notizia in un italiano giornalistico eccellente, curato, accattivante e professionale.
     
     REGOLE TASSATIVE:
     1. L'articolo deve trattare ESCLUSIVAMENTE di cani e/o gatti.
-    2. Struttura l'output in formato HTML puro (senza blocchi di codice markdown), usando tag <p> per i paragrafi e <h2> per i sottotitoli.
+    2. Struttura l'output in formato HTML puro (senza blocchi di codice markdown), usando tag <p> per i paragrafi e <h2> per eventuali sottotitoli.
     3. Fornisci 2 o 3 parole chiave in inglese focalizzate sul cane o gatto protagonista per trovare una foto reale (es. "cute golden retriever dog" o "sleeping kitten cat").
     4. Alla fine dell'articolo, inserisci il link alla fonte originale usando esattamente questo codice HTML: <a href="{original_link}" target="_blank" style="display:inline-block; background:#0284c7; color:#fff; padding:10px 20px; border-radius:5px; text-decoration:none; font-weight:600; margin-top:15px;">Guarda la notizia originale / Fonte</a>.
     
@@ -138,26 +153,10 @@ def main():
     [Il corpo dell'articolo in HTML con i tag <p> e <h2> e il link finale]
     """
 
-    # Chiamata all'API con sistema di retry automatico per l'errore 503
-    response = None
-    max_retries = 3
-    for attempt in range(max_retries):
-        try:
-            response = client.models.generate_content(
-                model='gemini-3.6-flash',
-                contents=prompt,
-            )
-            break
-        except Exception as e:
-            print(f"Tentativo {attempt + 1} fallito: {e}")
-            if attempt < max_retries - 1:
-                time.sleep((attempt + 1) * 10)
-            else:
-                raise e
-    
+    # Generazione con sistema di fallback integrato
+    response = generate_with_fallback(client, prompt)
     text_response = response.text
     
-    # Parsing pulito e sicuro basato sui separatori esatti
     try:
         parts_title = text_response.split("===SEO===")
         title_part = parts_title[0].replace("===TITOLO===", "").strip()
@@ -180,33 +179,27 @@ def main():
         image_keyword = "cute dog and cat"
         html_content = f"<p>{summary}</p><a href='{original_link}' target='_blank' style='display:inline-block; background:#0284c7; color:#fff; padding:10px 20px; border-radius:5px; text-decoration:none; font-weight:600; margin-top:15px;'>Fonte originale</a>"
 
-    # Recupera l'immagine reale da Wikimedia Commons
     print(f"Ricerca foto reale con chiave: '{image_keyword}'...")
     image_url = get_wikimedia_image(image_keyword)
 
-    # Inserisce l'immagine in cima all'articolo
     featured_image_html = f'<div style="text-align: center; margin-bottom: 25px;"><img src="{image_url}" alt="{new_title}" style="width: 100%; max-height: 450px; object-fit: cover; border-radius: 8px;"></div>'
     html_content = featured_image_html + html_content
 
     current_date = datetime.date.today().strftime("%d/%m/%Y")
 
-    # Leggi il template HTML
     with open("articoli/template.html", "r", encoding="utf-8") as f:
         template = f.read()
 
-    # Sostituzione sicura nel template
     article_html = template.replace("{{title}}", new_title)
     article_html = template.replace("{{description}}", new_desc)
     article_html = template.replace("{{date}}", current_date)
     article_html = template.replace("{{content}}", html_content)
 
-    # Salva il file HTML dell'articolo
     with open(filename, "w", encoding="utf-8") as f:
         f.write(article_html)
 
     print(f"Creato con successo il file: {filename}")
 
-    # Aggiorna la homepage index.html
     with open("index.html", "r", encoding="utf-8") as f:
         index_content = f.read()
 
