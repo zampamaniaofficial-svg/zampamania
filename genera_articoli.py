@@ -4,10 +4,12 @@ import datetime
 import time
 import random
 import urllib.parse
+import urllib.request
+import json
 import feedparser
 from google import genai
 
-# Elenco delle 10 fonti RSS multiple (italiane e internazionali)
+# Elenco delle 10 fonti RSS multiple
 RSS_SOURCES = [
     "https://www.kodami.it/feed/",
     "https://www.dogster.com/feed",
@@ -27,6 +29,34 @@ def slugify(text):
     text = re.sub(r'[\s-]+', '-', text).strip('-')
     return text
 
+def get_wikimedia_image(query_str):
+    """Cerca una vera foto professionale e gratuita su Wikimedia Commons in base alla query."""
+    # Pulisce la query per la ricerca
+    clean_query = re.sub(r'[^a-zA-Z0-9\s]', '', query_str)
+    encoded_query = urllib.parse.quote(clean_query)
+    url = f"https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch={encoded_query}&gsrnamespace=6&gsrlimit=5&prop=imageinfo&iiprop=url&format=json"
+    
+    req = urllib.request.Request(
+        url, 
+        headers={'User-Agent': 'ZampamaniaNewsBot/1.0 (Educational Project)'}
+    )
+    try:
+        with urllib.request.urlopen(req) as response:
+            data = json.loads(response.read().decode('utf-8'))
+            pages = data.get("query", {}).get("pages", {})
+            for page_id, page in pages.items():
+                imageinfo = page.get("imageinfo", [])
+                if imageinfo:
+                    img_url = imageinfo[0].get("url")
+                    # Accetta solo file immagine standard (.jpg, .jpeg, .png) ed evita loghi o icone svg
+                    if img_url and any(img_url.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png']):
+                        return img_url
+    except Exception as e:
+        print(f"Errore durante la ricerca dell'immagine su Wikimedia: {e}")
+    
+    # Immagine di fallback generica di alta qualità (un gatto) se la ricerca specifica non produce risultati
+    return "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Cat_November_2010-1a.jpg/800px-Cat_November_2010-1a.jpg"
+
 def main():
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
@@ -43,7 +73,7 @@ def main():
         print("Nessun articolo trovato nel feed.")
         return
 
-    # 2. Doppia casualità con controllo duplicati: mescola gli articoli del feed e scegline uno non ancora pubblicato
+    # 2. Doppia casualità con controllo duplicati
     entries = list(feed.entries)
     random.shuffle(entries)
 
@@ -56,7 +86,6 @@ def main():
         temp_slug = slugify(title)
         temp_filename = f"articoli/{temp_slug}.html"
         
-        # Verifica se l'articolo NON esiste già
         if not os.path.exists(temp_filename):
             selected_entry = entry
             slug = temp_slug
@@ -73,7 +102,7 @@ def main():
 
     print(f"Elaborazione in corso per l'articolo: {title}")
 
-    # Prompt aggiornato per includere anche la richiesta di un prompt visivo per l'immagine
+    # Prompt aggiornato per farsi dare da Gemini una parola chiave fotografica in inglese
     prompt = f"""
     Sei un caporedattore ed esperto giornalista specializzato nel mondo degli animali domestici ('Zampamania'), cani e gatti, e nella cura dei pet.
     Partendo dalle informazioni e dai temi trattati in questa notizia:
@@ -82,7 +111,7 @@ def main():
     1. TRADUZIONE E ADATTAMENTO: Se la fonte di partenza è in inglese o in un'altra lingua straniera, traduci i contenuti in un eccellente italiano giornalistico, adattando i termini tecnici veterinari o comportamentali in modo naturale.
     2. RIELABORAZIONE ORIGINALE: Riscrivi la notizia in modo originale, coinvolgente e professionale, evitando qualsiasi plagio.
     3. FORMATTAZIONE HTML: Struttura l'output in formato HTML puro (senza blocchi di codice markdown), usando tag <p> per i paragrafi e <h2> per eventuali sottotitoli.
-    4. IMMAGINE: Scrivi un prompt descrittivo in lingua inglese per generare un'immagine fotografica e realistica inerente all'articolo (es. "A cute cat sleeping on a sofa, professional photography, warm lighting").
+    4. IMMAGINE KEYWORD: Estrai o scrivi una singola frase di ricerca in inglese di 2-4 parole chiave focalizzata sull'animale o sul tema principale per trovare una foto reale (es. "cute puppy dog", "sleeping cat", "veterinarian examining dog").
     5. LINK FONTE: Alla fine dell'articolo, inserisci un link ben visibile che rimandi alla notizia o fonte originale usando esattamente questo codice: <a href="{original_link}" target="_blank" style="display:inline-block; background:#0284c7; color:#fff; padding:10px 20px; border-radius:5px; text-decoration:none; font-weight:600; margin-top:15px;">Guarda la notizia originale / Fonte</a>.
     
     Titolo originale: {title}
@@ -91,7 +120,7 @@ def main():
     Restituisci la risposta seguendo rigorosamente questa struttura:
     TITOLO_OTTIMIZZATO: [Inserisci qui un titolo accattivante in italiano]
     DESCRIZIONE_SEO: [Una meta description in italiano di circa 150 caratteri]
-    IMMAGINE_PROMPT: [Prompt in inglese per la generazione dell'immagine]
+    IMMAGINE_KEYWORD: [2-4 parole chiave in inglese per la ricerca della foto]
     CONTENUTO_HTML: [Il corpo dell'articolo formattato con tag HTML, inclusi il link finale]
     """
 
@@ -123,20 +152,20 @@ def main():
 
         title_match = re.search(r"TITOLO_OTTIMIZZATO:\s*(.*)", header_part)
         desc_match = re.search(r"DESCRIZIONE_SEO:\s*(.*)", header_part)
-        img_match = re.search(r"IMMAGINE_PROMPT:\s*(.*)", header_part)
+        kw_match = re.search(r"IMMAGINE_KEYWORD:\s*(.*)", header_part)
 
         new_title = title_match.group(1).strip() if title_match else title
         new_desc = desc_match.group(1).strip() if desc_match else summary[:150]
-        img_prompt = img_match.group(1).strip() if img_match else f"A cute pet animal, {new_title}"
+        image_keyword = kw_match.group(1).strip() if kw_match else "cute dog cat"
     except Exception as e:
         print(f"Errore nel parsing della risposta IA: {e}")
         return
 
-    # Generazione dell'URL dell'immagine tramite IA (servizio stabile via URL)
-    encoded_img_prompt = urllib.parse.quote(img_prompt)
-    image_url = f"https://image.pollinations.ai/prompt/{encoded_img_prompt}?width=800&height=450&nologo=true"
+    # Recupera una vera foto dall'archivio pubblico e gratuito di Wikimedia Commons
+    print(f"Ricerca foto reale con chiave: '{image_keyword}'...")
+    image_url = get_wikimedia_image(image_keyword)
 
-    # Inserisce l'immagine in cima al corpo dell'articolo
+    # Inserisce l'immagine reale in cima al corpo dell'articolo
     featured_image_html = f'<div style="text-align: center; margin-bottom: 25px;"><img src="{image_url}" alt="{new_title}" style="width: 100%; max-height: 450px; object-fit: cover; border-radius: 8px;"></div>'
     html_content = featured_image_html + html_content
 
@@ -148,9 +177,9 @@ def main():
 
     # Inserisci i dati dinamici nel template
     article_html = template.replace("{{title}}", new_title)
-    article_html = article_html.replace("{{description}}", new_desc)
-    article_html = article_html.replace("{{date}}", current_date)
-    article_html = article_html.replace("{{content}}", html_content)
+    article_html = template.replace("{{description}}", new_desc)
+    article_html = template.replace("{{date}}", current_date)
+    article_html = template.replace("{{content}}", html_content)
 
     # Salva il file HTML della notizia
     with open(filename, "w", encoding="utf-8") as f:
@@ -158,7 +187,7 @@ def main():
 
     print(f"Creato con successo il file: {filename}")
 
-    # Aggiorna la homepage index.html inserendo la card con miniatura sotto al titolo/link
+    # Aggiorna la homepage index.html inserendo la card con la vera miniatura fotografica
     with open("index.html", "r", encoding="utf-8") as f:
         index_content = f.read()
 
@@ -176,7 +205,7 @@ def main():
         index_content = index_content.replace('<div class="grid">', f'<div class="grid">\n{new_card}')
         with open("index.html", "w", encoding="utf-8") as f:
             f.write(index_content)
-        print("Homepage aggiornata con il nuovo articolo e miniatura.")
+        print("Homepage aggiornata con il nuovo articolo e miniatura reale.")
 
 if __name__ == "__main__":
     main()
