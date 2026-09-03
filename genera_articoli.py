@@ -45,7 +45,6 @@ RSS_SOURCES = [
     "https://bestfriends.org/news/rss.xml",
     "https://catbehaviorassociates.com/feed",
     "https://apnews.com/hub/pets",
-    # Fonti aggiuntive italiane e generali pet
     "https://www.amorepet.it/feed/",
     "https://www.mondopets.it/feed/",
     "https://www.GreenMe.it/tag/animali/feed/"
@@ -58,7 +57,6 @@ def slugify(text):
     return text
 
 def get_wikimedia_image(query_str):
-    """Cerca una vera foto professionale su Wikimedia Commons con timeout e fallback sicuro."""
     clean_query = re.sub(r'[^a-zA-Z0-9\s]', '', query_str)
     if not clean_query.strip():
         clean_query = "dog and cat"
@@ -92,7 +90,6 @@ def main():
 
     client = genai.Client(api_key=api_key)
 
-    # Creazione copia mescolata delle fonti per ciclare senza ripetizioni immediate nello stesso giro
     shuffled_sources = list(RSS_SOURCES)
     random.shuffle(shuffled_sources)
 
@@ -103,7 +100,6 @@ def main():
     title = ""
     summary = ""
 
-    # CICLO DI RICERCA ESAUSTIVO: continua finché non trova un articolo idoneo e non pubblicato
     found_article = False
     sources_checked = 0
 
@@ -135,11 +131,9 @@ def main():
                 
             temp_filename = f"articoli/{temp_slug}.html"
             
-            # Controllo se l'articolo è già stato pubblicato in precedenza
             if os.path.exists(temp_filename):
                 continue
 
-            # Filtro per assicurarsi che tratti di cani, gatti o animali domestici
             text_to_check = (entry_title + " " + entry_summary).lower()
             is_valid_pet = any(keyword in text_to_check for keyword in [
                 'cane', 'cani', 'dog', 'dogs', 'puppy', 'puppies', 'cucciolo', 'cuccioli',
@@ -188,9 +182,8 @@ def main():
     [Il corpo dell'articolo in HTML con i tag <p> e <h2> e il link finale]
     """
 
-    # Strategia basata su tentativi multipli con attesa progressiva per i modelli Gemini
-    models_to_try = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.7-flash']
-    max_attempts = 8
+    models_to_try = ['gemini-2.5-flash', 'gemini-1.5-flash']
+    max_attempts = 5
     response = None
     success_model = False
 
@@ -209,17 +202,15 @@ def main():
             except Exception as e:
                 print(f"Tentativo {attempt} fallito su {model_name}: {e}")
                 if attempt < max_attempts:
-                    wait_time = attempt * 15  # 15s, 30s, 45s, 60s, ecc.
-                    print(f"Server occupati. Attendo {wait_time} secondi prima di riprovare...")
+                    wait_time = attempt * 10
+                    print(f"Attendo {wait_time} secondi prima di riprovare...")
                     time.sleep(wait_time)
         
         if success_model:
             break
-        else:
-            print(f"Tutti i {max_attempts} tentativi esauriti per {model_name}. Passo al modello successivo...")
 
     if not response:
-        raise RuntimeError("Impossibile completare la generazione: tutti i modelli Gemini configurati sono rimasti sovraccarichi dopo vari cicli di tentativi.")
+        raise RuntimeError("Impossibile completare la generazione: errore di autenticazione o modelli non disponibili.")
     
     text_response = response.text
     
