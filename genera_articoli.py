@@ -13,18 +13,42 @@ from google import genai
 # Timeout globale di sicurezza sulle connessioni di rete
 socket.setdefaulttimeout(15)
 
-# Elenco di 10 fonti RSS ESCLUSIVAMENTE focalizzate su cani, gatti e pet domestici
+# Elenco completo ed espanso di fonti RSS (Internazionali di settore + Italiane)
 RSS_SOURCES = [
     "https://www.kodami.it/feed/",
     "https://www.dogster.com/feed",
     "https://www.catster.com/feed",
-    "https://www.petful.com/feed/",
     "https://iheartdogs.com/feed",
-    "https://dogingtonpost.com/feed",
+    "https://iheartcats.com/feed",
+    "https://dogtime.com/feed",
+    "https://cattime.com/feed",
+    "https://www.lovemeow.com/feed",
+    "https://katzenworld.co.uk/feed",
+    "https://www.dogingtonpost.com/feed",
+    "https://moderndogmagazine.com/rss.xml",
+    "https://moderncat.com/rss.xml",
     "https://goodnewsforpets.com/feed",
-    "https://icatcare.org/feed/",
-    "https://www.thelabradorsite.com/feed/",
-    "https://www.catsofaustralia.com/blog/rss"
+    "https://www.petmd.com/rss",
+    "https://www.thesprucepets.com/rss",
+    "https://thebark.com/feed",
+    "https://www.petsradar.com/rss.xml",
+    "https://www.akc.org/feed",
+    "https://animalwellnessmagazine.com/feed",
+    "https://www.whole-dog-journal.com/feed",
+    "https://www.rover.com/blog/feed/",
+    "https://worldanimalnews.com/feed",
+    "https://blogpaws.com/feed",
+    "https://cattitude-daily.com/feed",
+    "https://www.lifewithdogs.tv/feed",
+    "https://www.petgazette.biz/feed/",
+    "https://www.vetstreet.com/feed/",
+    "https://bestfriends.org/news/rss.xml",
+    "https://catbehaviorassociates.com/feed",
+    "https://apnews.com/hub/pets",
+    # Fonti aggiuntive italiane e generali pet
+    "https://www.amorepet.it/feed/",
+    "https://www.mondopets.it/feed/",
+    "https://www.GreenMe.it/tag/animali/feed/"
 ]
 
 def slugify(text):
@@ -68,65 +92,86 @@ def main():
 
     client = genai.Client(api_key=api_key)
 
-    # 1. Scelta casuale della fonte RSS
-    rss_url = random.choice(RSS_SOURCES)
-    print(f"Controllo feed RSS dalla fonte: {rss_url}...")
-    
-    try:
-        feed = feedparser.parse(rss_url)
-    except Exception as e:
-        print(f"Errore nel parsing del feed RSS {rss_url}: {e}")
-        return
-
-    if not feed.entries:
-        print("Nessun articolo trovato nel feed o feed non raggiungibile.")
-        return
-
-    entries = list(feed.entries)
-    random.shuffle(entries)
+    # Creazione copia mescolata delle fonti per ciclare senza ripetizioni immediate nello stesso giro
+    shuffled_sources = list(RSS_SOURCES)
+    random.shuffle(shuffled_sources)
 
     selected_entry = None
     slug = ""
     filename = ""
-    
-    for entry in entries:
-        title = entry.title
-        summary = entry.get('summary', '')
-        
-        temp_slug = slugify(title)
-        temp_filename = f"articoli/{temp_slug}.html"
-        
-        text_to_check = (title + " " + summary).lower()
-        is_dog_or_cat = any(keyword in text_to_check for keyword in [
-            'cane', 'cani', 'dog', 'dogs', 'puppy', 'puppies', 'cucciolo', 'cuccioli',
-            'gatto', 'gatti', 'cat', 'cats', 'kitten', 'kittens', 'gattino', 'gattini',
-            'feline', 'canine', 'pet', 'pets'
-        ])
-        
-        if not os.path.exists(temp_filename) and is_dog_or_cat:
-            selected_entry = entry
-            slug = temp_slug
-            filename = temp_filename
-            break
+    original_link = ""
+    title = ""
+    summary = ""
 
-    if not selected_entry:
-        print("Nessun nuovo articolo idoneo su cani/gatti trovato in questo feed.")
-        return
+    # CICLO DI RICERCA ESAUSTIVO: continua finché non trova un articolo idoneo e non pubblicato
+    found_article = False
+    sources_checked = 0
 
-    title = selected_entry.title
-    summary = selected_entry.get('summary', '')
-    original_link = selected_entry.get('link', '#')
+    while not found_article and shuffled_sources:
+        rss_url = shuffled_sources.pop(0)
+        sources_checked += 1
+        print(f"[{sources_checked}] Controllo feed RSS dalla fonte: {rss_url}...")
 
-    print(f"Trovato articolo valido: {title}")
+        try:
+            feed = feedparser.parse(rss_url)
+        except Exception as e:
+            print(f"Errore nel parsing del feed RSS {rss_url}: {e}")
+            continue
+
+        if not feed.entries:
+            print("Feed vuoto o non raggiungibile. Passo alla prossima fonte...")
+            continue
+
+        entries = list(feed.entries)
+        random.shuffle(entries)
+
+        for entry in entries:
+            entry_title = entry.get('title', '')
+            entry_summary = entry.get('summary', '')
+            
+            temp_slug = slugify(entry_title)
+            if not temp_slug:
+                continue
+                
+            temp_filename = f"articoli/{temp_slug}.html"
+            
+            # Controllo se l'articolo è già stato pubblicato in precedenza
+            if os.path.exists(temp_filename):
+                continue
+
+            # Filtro per assicurarsi che tratti di cani, gatti o animali domestici
+            text_to_check = (entry_title + " " + entry_summary).lower()
+            is_valid_pet = any(keyword in text_to_check for keyword in [
+                'cane', 'cani', 'dog', 'dogs', 'puppy', 'puppies', 'cucciolo', 'cuccioli',
+                'gatto', 'gatti', 'cat', 'cats', 'kitten', 'kittens', 'gattino', 'gattini',
+                'feline', 'canine', 'pet', 'pets', 'animale', 'animali'
+            ])
+
+            if is_valid_pet:
+                selected_entry = entry
+                title = entry_title
+                summary = entry_summary
+                original_link = entry.get('link', '#')
+                slug = temp_slug
+                filename = temp_filename
+                found_article = True
+                print(f"Articolo valido trovato: {title}")
+                break
+        
+        if not found_article:
+            print("Nessun articolo idoneo/inedito in questo feed. Continuo la ricerca su un'altra fonte...")
+
+    if not found_article:
+        raise RuntimeError("Impossibile trovare alcun articolo inedito su tutte le fonti RSS analizzate.")
 
     prompt = f"""
     Sei il caporedattore del magazine online 'Zampamania', esperto in cinofilia e felinologia.
     Riscrivi la seguente notizia in un italiano giornalistico eccellente, curato, accattivante e professionale.
     
     REGOLE TASSATIVE:
-    1. L'articolo deve trattare ESCLUSIVAMENTE di cani e/o gatti.
+    1. L'articolo deve trattare ESCLUSIVAMENTE di cani, gatti o animali domestici.
     2. Struttura l'output in formato HTML puro (senza blocchi di codice markdown), usando tag <p> per i paragrafi e <h2> per eventuali sottotitoli.
-    3. Fornisci 2 o 3 parole chiave in inglese focalizzate sul cane o gatto protagonista per trovare una foto reale (es. "cute golden retriever dog" o "sleeping kitten cat").
+    3. Fornisci 2 o 3 parole chiave in inglese focalizzate sul soggetto protagonista per trovare una foto reale (es. "cute golden retriever dog" o "sleeping kitten cat").
     4. Alla fine dell'articolo, inserisci il link alla fonte originale usando esattamente questo codice HTML: <a href="{original_link}" target="_blank" style="display:inline-block; background:#0284c7; color:#fff; padding:10px 20px; border-radius:5px; text-decoration:none; font-weight:600; margin-top:15px;">Guarda la notizia originale / Fonte</a>.
     
     Titolo originale: {title}
@@ -143,7 +188,7 @@ def main():
     [Il corpo dell'articolo in HTML con i tag <p> e <h2> e il link finale]
     """
 
-    # Strategia basata su 8 tentativi per modello con attesa progressiva (15s, 30s, 45s, 60s...)
+    # Strategia basata su tentativi multipli con attesa progressiva per i modelli Gemini
     models_to_try = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.7-flash']
     max_attempts = 8
     response = None
@@ -164,7 +209,7 @@ def main():
             except Exception as e:
                 print(f"Tentativo {attempt} fallito su {model_name}: {e}")
                 if attempt < max_attempts:
-                    wait_time = attempt * 15  # 15s, 30s, 45s, 60s, 75s, 90s, 105s
+                    wait_time = attempt * 15  # 15s, 30s, 45s, 60s, ecc.
                     print(f"Server occupati. Attendo {wait_time} secondi prima di riprovare...")
                     time.sleep(wait_time)
         
