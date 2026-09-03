@@ -57,25 +57,6 @@ def get_wikimedia_image(query_str):
     
     return "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Golde33443.jpg/800px-Golde33443.jpg"
 
-def generate_with_fallback(client, prompt):
-    """Tenta la generazione con il modello principale e, in caso di errore 503, passa ai modelli di fallback."""
-    models_to_try = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-1.5-flash']
-    
-    for model_name in models_to_try:
-        for attempt in range(2): # 2 tentativi per modello
-            try:
-                print(f"Tentativo con il modello {model_name} (Tentativo {attempt + 1})...")
-                response = client.models.generate_content(
-                    model=model_name,
-                    contents=prompt,
-                )
-                return response
-            except Exception as e:
-                print(f"Modello {model_name} fallito: {e}")
-                time.sleep(5)
-                
-    raise RuntimeError("Tutti i modelli Gemini disponibili sono attualmente sovraccarichi. Riprova più tardi.")
-
 def main():
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
@@ -153,8 +134,26 @@ def main():
     [Il corpo dell'articolo in HTML con i tag <p> e <h2> e il link finale]
     """
 
-    # Generazione con sistema di fallback integrato
-    response = generate_with_fallback(client, prompt)
+    # Retry robusto con attesa esponenziale per superare i picchi di traffico (503)
+    response = None
+    max_retries = 5
+    for attempt in range(max_retries):
+        try:
+            print(f"Generazione con gemini-3.6-flash (Tentativo {attempt + 1}/{max_retries})...")
+            response = client.models.generate_content(
+                model='gemini-3.6-flash',
+                contents=prompt,
+            )
+            break
+        except Exception as e:
+            print(f"Tentativo {attempt + 1} fallito: {e}")
+            if attempt < max_retries - 1:
+                wait_time = (attempt + 1) * 15  # 15s, 30s, 45s, 60s
+                print(f"Servizio temporaneamente occupato (503). Attendo {wait_time} secondi prima di riprovare...")
+                time.sleep(wait_time)
+            else:
+                raise RuntimeError("Impossibile completare la generazione: i server sono sovraccarichi. Riprova più tardi.")
+    
     text_response = response.text
     
     try:
