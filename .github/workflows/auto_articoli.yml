@@ -1,39 +1,39 @@
-name: Genera e Pubblica Notizie
+name: Genera e Pubblica Articoli
 
 on:
   schedule:
-    - cron: '0 8,20 * * *'
-  workflow_dispatch:
+    - cron: '0 7 * * *'   # Mattina (07:00 UTC / 09:00 ora italiana)
+    - cron: '0 15 * * *'  # Pomeriggio (15:00 UTC / 17:00 ora italiana)
+  workflow_dispatch:      # Consente anche l'avvio manuale dalla scheda Actions
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
     steps:
-      - name: Clona Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Configura Python
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      - name: Installa Dipendenze
+      - name: Install dependencies
         run: |
-          pip install --upgrade pip
-          pip install -r requirements.txt
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      - name: Esegui Script di Generazione
+      - name: Run article generator script
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           python genera_articoli.py
 
-      - name: Esegui Commit e Push delle Modifiche
+      - name: Commit and push changes
         run: |
-          git config --global user.name "Zampamania Bot"
-          git config --global user.email "bot@users.noreply.github.com"
-          git add .
-          git diff --staged --quiet || (git commit -m "Auto-generazione nuovo articolo pet" && git pull --rebase origin main && git push)
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.html articoli/
+          git diff --staged --quiet || (git commit -m "Nuovo articolo automatico (Zampamania Bot)" && git push)
