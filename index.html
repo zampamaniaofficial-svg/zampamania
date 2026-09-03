@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zampamania 🐾 Offerte, Sconti e Consigli per Animali</title>
-    <meta name="description" content="Il canale e blog n.1 in Italia per risparmiare su cibo, giochi e accessori per cani e gatti. Offerte lampo e codici sconto aggiornati ogni giorno!">
+    <title>Zampamania 🐾 Offerte, Sconti e Notizie per Cani e Gatti</title>
+    <meta name="description" content="Il punto di riferimento in Italia per essere sempre aggiornati sul mondo di cani e gatti con notizie e offerte esclusive.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -37,7 +37,7 @@
             font-family: 'Plus Jakarta Sans', sans-serif;
         }
 
-        /* Header Pulito (senza pulsante) */
+        /* Header Pulito */
         header {
             position: fixed;
             top: 0;
@@ -95,31 +95,47 @@
             color: var(--secondary);
         }
 
-        /* Hero Section d'impatto */
+        /* Hero Section d'impatto con zampamania.com */
         .hero-section {
             background: linear-gradient(135deg, #fff7ed 0%, #fef3c7 100%);
             border-bottom: 1px solid var(--border);
-            padding: 130px 20px 40px;
+            padding: 130px 20px 50px;
             text-align: center;
         }
 
         .hero-content {
-            max-width: 800px;
+            max-width: 850px;
             margin: 0 auto;
         }
 
+        .hero-badge {
+            display: inline-block;
+            background: rgba(249, 115, 22, 0.15);
+            color: var(--primary-dark);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 700;
+            font-size: 14px;
+            padding: 6px 18px;
+            border-radius: 50px;
+            margin-bottom: 16px;
+            letter-spacing: 0.5px;
+        }
+
         .hero-content h1 {
-            font-size: 36px;
+            font-size: 34px;
             font-weight: 800;
             color: var(--dark);
-            margin-bottom: 12px;
+            margin-bottom: 16px;
             letter-spacing: -0.5px;
+            line-height: 1.25;
         }
 
         .hero-content p {
             font-size: 17px;
             color: var(--gray);
-            line-height: 1.5;
+            line-height: 1.6;
+            max-width: 750px;
+            margin: 0 auto;
         }
 
         /* Magazine Layout (Due Colonne) */
@@ -140,7 +156,7 @@
                 display: none;
             }
             .hero-content h1 {
-                font-size: 28px;
+                font-size: 26px;
             }
         }
 
@@ -264,11 +280,12 @@
         </div>
     </header>
 
-    <!-- Hero Section d'impatto -->
+    <!-- Hero Section d'impatto con zampamania.com -->
     <section class="hero-section">
         <div class="hero-content">
-            <h1>Risparmia sugli acquisti per i tuoi amici a 4 zampe 🐾</h1>
-            <p>Il punto di riferimento in Italia per scoprire offerte lampo, codici sconto esclusivi e notizie imperdibili su cibo, giochi e accessori per cani e gatti.</p>
+            <div class="hero-badge">🐾 zampamania.com</div>
+            <h1>Il punto di riferimento in Italia per essere sempre aggiornati sul mondo di cani e gatti</h1>
+            <p>Notizie da tutto il mondo e offerte e sconti esclusivi su cibo, giochi e accessori per i tuoi amici a 4 zampe.</p>
         </div>
     </section>
 
