@@ -57,6 +57,7 @@ def slugify(text):
     return text
 
 def get_wikimedia_image(query_str):
+    fallback_image = "https://upload.wikimedia.org/wikipedia/commons/4/47/American_Eskimo_Dog.jpg"
     clean_query = re.sub(r'[^a-zA-Z0-9\s]', '', query_str)
     if not clean_query.strip():
         clean_query = "dog and cat"
@@ -81,7 +82,7 @@ def get_wikimedia_image(query_str):
     except Exception as e:
         print(f"Errore o timeout nella ricerca immagine Wikimedia: {e}")
     
-    return "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Golde33443.jpg/800px-Golde33443.jpg"
+    return fallback_image
 
 def main():
     api_key = os.environ.get("GEMINI_API_KEY")
@@ -182,7 +183,6 @@ def main():
     [Il corpo dell'articolo in HTML con i tag <p> e <h2> e il link finale]
     """
 
-    # Aggiornato con i modelli corretti suggeriti da Google AI Studio
     models_to_try = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.7-flash']
     max_attempts = 5
     response = None
@@ -248,10 +248,12 @@ def main():
     with open("articoli/template.html", "r", encoding="utf-8") as f:
         template = f.read()
 
-    article_html = template.replace("{{title}}", new_title)
-    article_html = template.replace("{{description}}", new_desc)
-    article_html = template.replace("{{date}}", current_date)
-    article_html = template.replace("{{content}}", html_content)
+    # CORRETTO: Sostituzioni multiple concatenate correttamente su article_html
+    article_html = template
+    article_html = article_html.replace("{{title}}", new_title)
+    article_html = article_html.replace("{{description}}", new_desc)
+    article_html = article_html.replace("{{date}}", current_date)
+    article_html = article_html.replace("{{content}}", html_content)
 
     with open(filename, "w", encoding="utf-8") as f:
         f.write(article_html)
