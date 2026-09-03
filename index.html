@@ -37,7 +37,7 @@
             font-family: 'Plus Jakarta Sans', sans-serif;
         }
 
-        /* Header Professionale */
+        /* Header */
         header {
             position: fixed;
             top: 0;
@@ -95,11 +95,11 @@
             color: var(--primary);
         }
 
-        /* Hero Section Moderna e Pulita */
+        /* Hero Section */
         .hero-section {
             background: linear-gradient(135deg, #fff7ed 0%, #fef3c7 100%);
             border-bottom: 1px solid var(--border);
-            padding: 140px 20px 70px;
+            padding: 130px 20px 60px;
             text-align: center;
         }
 
@@ -110,18 +110,6 @@
             flex-direction: column;
             align-items: center;
             gap: 20px;
-        }
-
-        .hero-badge {
-            background-color: #ffedd5;
-            color: var(--primary-dark);
-            padding: 6px 14px;
-            border-radius: 50px;
-            font-size: 13px;
-            font-weight: 700;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
         }
 
         .hero-content h1 {
@@ -140,6 +128,14 @@
             margin: 0 auto;
         }
 
+        .hero-cta-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
         .hero-cta {
             display: inline-flex;
             align-items: center;
@@ -151,7 +147,6 @@
             text-decoration: none;
             font-weight: 700;
             font-size: 16px;
-            margin-top: 10px;
             box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
             transition: transform 0.2s, background-color 0.2s;
         }
@@ -159,6 +154,19 @@
         .hero-cta:hover {
             background-color: #0369a1;
             transform: translateY(-2px);
+        }
+
+        .hero-trust {
+            font-size: 13px;
+            color: var(--gray);
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .hero-trust i {
+            color: var(--primary);
         }
 
         @media (max-width: 900px) {
@@ -186,7 +194,7 @@
             }
         }
 
-        /* Colonna di Sinistra (News Feed) */
+        /* News Feed */
         .news-feed {
             display: flex;
             flex-direction: column;
@@ -217,7 +225,7 @@
             color: var(--secondary);
         }
 
-        /* Colonna di Destra (Sidebar) */
+        /* Sidebar */
         .sidebar {
             display: flex;
             flex-direction: column;
@@ -301,19 +309,21 @@
         </div>
     </header>
 
-    <!-- Hero Section Professionale -->
+    <!-- Hero Section -->
     <section class="hero-section">
         <div class="hero-container">
-            <div class="hero-badge">
-                <i class="fa-solid fa-bolt"></i> Offerte verificate ogni giorno
-            </div>
             <div class="hero-content">
                 <h1>Il punto di riferimento in Italia per il mondo di cani e gatti</h1>
-                <p>Notizie da tutto il mondo, guide veterinarie e sconti esclusivi su cibo, giochi e accessori per i tuoi amici a 4 zampe.</p>
+                <p>Notizie da tutto il mondo, consigli di cura e benessere e sconti esclusivi su cibo, giochi e accessori per i tuoi amici a 4 zampe.</p>
             </div>
-            <a href="https://t.me/zampamania" target="_blank" class="hero-cta">
-                <i class="fa-brands fa-telegram"></i> Unisciti al Canale Offerte
-            </a>
+            <div class="hero-cta-wrapper">
+                <a href="https://t.me/zampamania" target="_blank" class="hero-cta">
+                    <i class="fa-brands fa-telegram"></i> Unisciti al Canale Offerte
+                </a>
+                <span class="hero-trust">
+                    <i class="fa-solid fa-shield-halved"></i> Offerte verificate ogni giorno dalla redazione
+                </span>
+            </div>
         </div>
     </section>
 
