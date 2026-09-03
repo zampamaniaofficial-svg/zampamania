@@ -29,7 +29,7 @@
         body {
             font-family: 'Inter', sans-serif;
             color: var(--dark);
-            background-color: #ffffff;
+            background-color: var(--light);
             line-height: 1.7;
         }
 
@@ -96,8 +96,12 @@
 
         .article-container {
             max-width: 800px;
-            margin: 140px auto 80px;
-            padding: 0 20px;
+            margin: 120px auto 60px;
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
         }
 
         .article-meta {
@@ -109,10 +113,10 @@
         }
 
         h1.article-title {
-            font-size: 36px;
+            font-size: 34px;
             font-weight: 800;
             margin-bottom: 25px;
-            line-height: 1.2;
+            line-height: 1.25;
             color: var(--dark);
         }
 
@@ -132,7 +136,7 @@
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
             color: var(--secondary);
             text-decoration: none;
             font-weight: 600;
@@ -162,7 +166,7 @@
             <a href="../index.html" class="logo-link">
                 <img src="../logo.jpg" alt="Zampamania Logo"> Zampamania
             </a>
-            <a href="https://t.me/zampamania_offerte" target="_blank" class="btn-telegram-nav">
+            <a href="https://t.me/zampamania" target="_blank" class="btn-telegram-nav">
                 <i class="fa-brands fa-telegram"></i> Canale Telegram
             </a>
         </div>
@@ -175,7 +179,9 @@
             <span><i class="fa-regular fa-folder"></i> Notizie Pet</span>
         </div>
         <h1 class="article-title">{{title}}</h1>
+        
         <div class="article-content">
+            <!-- Il contenuto iniettato conterrà già l'immagine in alto, i paragrafi e, alla fine, il box Telegram in primo piano e il link fonte in basso -->
             {{content}}
         </div>
     </main>
