@@ -170,11 +170,33 @@
         }
 
         @media (max-width: 900px) {
+            .nav-container {
+                flex-direction: column;
+                gap: 12px;
+            }
             .nav-menu {
-                display: none;
+                display: flex;
+                gap: 16px;
+                overflow-x: auto;
+                width: 100%;
+                padding-bottom: 5px;
+                justify-content: center;
+                white-space: nowrap;
             }
             .hero-content h1 {
-                font-size: 28px;
+                font-size: 26px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .magazine-container {
+                padding: 0 12px;
+            }
+            .news-card, .sidebar-widget {
+                padding: 16px !important;
+            }
+            .hero-section {
+                padding: 110px 15px 40px;
             }
         }
 
