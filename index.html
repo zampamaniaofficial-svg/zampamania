@@ -37,7 +37,7 @@
             font-family: 'Plus Jakarta Sans', sans-serif;
         }
 
-        /* Header Pulito */
+        /* Header con Logo e Dominio */
         header {
             position: fixed;
             top: 0;
@@ -66,12 +66,12 @@
             color: var(--dark);
             font-family: 'Plus Jakarta Sans', sans-serif;
             font-weight: 800;
-            font-size: 20px;
+            font-size: 18px;
         }
 
         .logo-link img {
-            height: 42px;
-            width: 42px;
+            height: 38px;
+            width: 38px;
             object-fit: cover;
             border-radius: 50%;
             border: 2px solid var(--primary);
@@ -95,47 +95,62 @@
             color: var(--secondary);
         }
 
-        /* Hero Section d'impatto con zampamania.com */
+        /* Hero Section con Banner e Titolo */
         .hero-section {
             background: linear-gradient(135deg, #fff7ed 0%, #fef3c7 100%);
             border-bottom: 1px solid var(--border);
-            padding: 130px 20px 50px;
-            text-align: center;
+            padding: 120px 20px 40px;
+        }
+
+        .hero-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 40px;
+        }
+
+        .hero-banner-img {
+            flex: 0 0 320px;
+            max-width: 100%;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            border: 1px solid var(--border);
         }
 
         .hero-content {
-            max-width: 850px;
-            margin: 0 auto;
-        }
-
-        .hero-badge {
-            display: inline-block;
-            background: rgba(249, 115, 22, 0.15);
-            color: var(--primary-dark);
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            font-weight: 700;
-            font-size: 14px;
-            padding: 6px 18px;
-            border-radius: 50px;
-            margin-bottom: 16px;
-            letter-spacing: 0.5px;
+            flex: 1;
         }
 
         .hero-content h1 {
-            font-size: 34px;
+            font-size: 32px;
             font-weight: 800;
             color: var(--dark);
-            margin-bottom: 16px;
+            margin-bottom: 14px;
             letter-spacing: -0.5px;
             line-height: 1.25;
         }
 
         .hero-content p {
-            font-size: 17px;
+            font-size: 16px;
             color: var(--gray);
             line-height: 1.6;
-            max-width: 750px;
-            margin: 0 auto;
+        }
+
+        @media (max-width: 900px) {
+            .hero-container {
+                flex-direction: column;
+                text-align: center;
+            }
+            .hero-banner-img {
+                max-width: 260px;
+            }
+            .nav-menu {
+                display: none;
+            }
+            .hero-content h1 {
+                font-size: 26px;
+            }
         }
 
         /* Magazine Layout (Due Colonne) */
@@ -151,12 +166,6 @@
         @media (max-width: 900px) {
             .magazine-container {
                 grid-template-columns: 1fr;
-            }
-            .nav-menu {
-                display: none;
-            }
-            .hero-content h1 {
-                font-size: 26px;
             }
         }
 
@@ -265,11 +274,11 @@
 </head>
 <body>
 
-    <!-- Header Pulito -->
+    <!-- Header con Logo e Navigazione -->
     <header>
         <div class="nav-container">
             <a href="index.html" class="logo-link">
-                <img src="logo.jpg" alt="Zampamania Logo"> Zampamania
+                <img src="logo.jpg" alt="Zampamania Logo"> zampamania.com
             </a>
             <ul class="nav-menu">
                 <li><a href="#">Cani</a></li>
@@ -280,12 +289,14 @@
         </div>
     </header>
 
-    <!-- Hero Section d'impatto con zampamania.com -->
+    <!-- Hero Section con Banner e Slogan -->
     <section class="hero-section">
-        <div class="hero-content">
-            <div class="hero-badge">🐾 zampamania.com</div>
-            <h1>Il punto di riferimento in Italia per essere sempre aggiornati sul mondo di cani e gatti</h1>
-            <p>Notizie da tutto il mondo e offerte e sconti esclusivi su cibo, giochi e accessori per i tuoi amici a 4 zampe.</p>
+        <div class="hero-container">
+            <img src="banner.jpg" alt="Zampamania Banner" class="hero-banner-img">
+            <div class="hero-content">
+                <h1>Il punto di riferimento in Italia per essere sempre aggiornati sul mondo di cani e gatti</h1>
+                <p>Notizie da tutto il mondo e offerte e sconti esclusivi su cibo, giochi e accessori per i tuoi amici a 4 zampe.</p>
+            </div>
         </div>
     </section>
 
