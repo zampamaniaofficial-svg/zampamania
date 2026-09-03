@@ -231,7 +231,6 @@ def main():
     [Il corpo dell'articolo in HTML con i tag <p>, <h2>, il banner Telegram e la fonte in fondo]
     """
 
-    # Ripristinato il sistema robusto di tentativi multipli con backoff
     models_to_try = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.7-flash']
     max_attempts = 5
     response = None
@@ -281,7 +280,7 @@ def main():
 
     image_url = get_wikimedia_image(image_keyword, is_cat_article=is_cat, used_images=used_images)
 
-    featured_image_html = f'<div style="text-align: center; margin-bottom: 25px;"><img src="{image_url}" alt="{new_title}" style="width: 100%; max-height: 450px; object-fit: cover; border-radius: 8px;"></div>'
+    featured_image_html = f'<div style="text-align: center; margin-bottom: 25px; aspect-ratio: 16/9; max-height: 450px; overflow: hidden; border-radius: 8px;"><img src="{image_url}" alt="{new_title}" style="width: 100%; height: 100%; object-fit: cover;"></div>'
     html_content = featured_image_html + html_content
 
     current_date = datetime.date.today().strftime("%d/%m/%Y")
@@ -300,7 +299,7 @@ def main():
 
     new_news_card = f"""
             <article class="news-card" style="background:#fff; padding:20px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.05); margin-bottom:20px;">
-                <div style="margin-bottom: 12px;"><img src="{image_url}" alt="{new_title}" style="width: 100%; height: 200px; object-fit: cover; border-radius: 6px;"></div>
+                <div style="margin-bottom: 12px; aspect-ratio: 16/9; overflow: hidden; border-radius: 6px;"><img src="{image_url}" alt="{new_title}" style="width: 100%; height: 100%; object-fit: cover;"></div>
                 <span style="font-size: 12px; background:#e0f2fe; color:#0369a1; padding:4px 8px; border-radius:4px; font-weight:600;">News</span>
                 <h3 style="margin: 10px 0;"><a href="articoli/{slug}.html" style="text-decoration:none; color:#0f172a;">{new_title}</a></h3>
                 <p style="color:#475569; font-size:14px;">{new_desc}</p>
