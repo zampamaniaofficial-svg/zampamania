@@ -13,7 +13,7 @@ from google import genai
 # Timeout globale di sicurezza sulle connessioni di rete
 socket.setdefaulttimeout(15)
 
-# Elenco completo ed espanso di fonti RSS (Internazionali di settore + Italiane)
+# Elenco completo delle fonti RSS
 RSS_SOURCES = [
     "https://www.kodami.it/feed/",
     "https://www.dogster.com/feed",
@@ -57,7 +57,6 @@ def slugify(text):
     return text
 
 def get_existing_images():
-    """Scansiona la home e gli articoli esistenti per raccogliere i link delle immagini già usate."""
     used = set()
     if os.path.exists("index.html"):
         try:
@@ -86,7 +85,6 @@ def get_wikimedia_image(query_str, is_cat_article=False, used_images=None):
     if used_images is None:
         used_images = set()
         
-    # Pool di fallback differenziati per evitare ripetizioni fisse
     cat_fallbacks = [
         "https://upload.wikimedia.org/wikipedia/commons/3/3a/Cat03.jpg",
         "https://upload.wikimedia.org/wikipedia/commons/b/b6/Felis_catus-cat_on_snow.jpg",
@@ -121,18 +119,15 @@ def get_wikimedia_image(query_str, is_cat_article=False, used_images=None):
                     img_url = imageinfo[0].get("url")
                     if img_url and any(img_url.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png']):
                         img_lower = img_url.lower()
-                        # Coerenza soggetto
                         if is_cat_article and 'dog' in img_lower and 'cat' not in img_lower:
                             continue
                         if not is_cat_article and 'cat' in img_lower and 'dog' not in img_lower:
                             continue
-                        # Evita immagini già usate in precedenza
                         if img_url not in used_images:
                             return img_url
     except Exception as e:
-        print(f"Errore o timeout nella ricerca immagine Wikimedia: {e}")
+        print(f"Errore nella ricerca immagine Wikimedia: {e}")
     
-    # Seleziona un fallback sicuro non ancora utilizzato
     fallbacks = cat_fallbacks if is_cat_article else dog_fallbacks
     for fb in fallbacks:
         if fb not in used_images:
@@ -146,10 +141,7 @@ def main():
         raise ValueError("API Key non trovata nelle variabili d'ambiente.")
 
     client = genai.Client(api_key=api_key)
-
-    # Raccoglie le immagini già utilizzate nel sito
     used_images = get_existing_images()
-    print(ミア := f"Immagini già in uso rilevate: {len(used_images)}")
 
     shuffled_sources = list(RSS_SOURCES)
     random.shuffle(shuffled_sources)
@@ -160,7 +152,6 @@ def main():
     original_link = ""
     title = ""
     summary = ""
-
     found_article = False
     sources_checked = 0
 
@@ -172,11 +163,10 @@ def main():
         try:
             feed = feedparser.parse(rss_url)
         except Exception as e:
-            print(f"Errore nel parsing del feed RSS {rss_url}: {e}")
+            print(f"Errore nel parsing del feed {rss_url}: {e}")
             continue
 
         if not feed.entries:
-            print("Feed vuoto o non raggiungibile. Passo alla prossima fonte...")
             continue
 
         entries = list(feed.entries)
@@ -191,7 +181,6 @@ def main():
                 continue
                 
             temp_filename = f"articoli/{temp_slug}.html"
-            
             if os.path.exists(temp_filename):
                 continue
 
@@ -212,12 +201,9 @@ def main():
                 found_article = True
                 print(f"Articolo valido trovato: {title}")
                 break
-        
-        if not found_article:
-            print("Nessun articolo idoneo/inedito in questo feed. Continuo la ricerca su un'altra fonte...")
 
     if not found_article:
-        raise RuntimeError("Impossibile trovare alcun articolo inedito su tutte le fonti RSS analizzate.")
+        raise RuntimeError("Impossibile trovare alcun articolo inedito sulle fonti RSS.")
 
     prompt = f"""
     Sei il caporedattore del magazine online 'Zampamania', esperto in cinofilia e felinologia.
@@ -225,87 +211,74 @@ def main():
     
     REGOLE TASSATIVE:
     1. L'articolo deve trattare ESCLUSIVAMENTE di cani, gatti o animali domestici.
-    2. Struttura l'output in formato HTML puro (senza blocchi di codice markdown), usando tag <p> per i paragrafi e <h2> per eventuali sottotitoli.
-    3. Fornisci MASSIMO 2 o 3 parole chiave in inglese brevi e semplici per la foto (es. "cute cat portrait" oppure "happy puppy dog"). NON inserire titoli o frasi lunghe.
-    4. Alla fine dell'articolo, inserisci il link alla fonte originale usando esattamente questo codice HTML: <a href="{original_link}" target="_blank" style="display:inline-block; background:#0284c7; color:#fff; padding:10px 20px; border-radius:5px; text-decoration:none; font-weight:600; margin-top:15px;">Guarda la notizia originale / Fonte</a>.
+    2. Struttura l'output in formato HTML puro (senza blocchi markdown), usando tag <p> per i paragrafi e <h2> per i sottotitoli.
+    3. Fornisci MASSIMO 2 o 3 parole chiave in inglese brevi per la foto (es. "cute cat portrait").
+    4. ALLA FINE DELL'ARTICOLO inserisci rigorosamente:
+       - Un box banner d'impatto per Telegram: <div style="background:#0284c7; color:#fff; padding:25px; border-radius:10px; text-align:center; margin:35px 0; box-shadow:0 4px 6px rgba(0,0,0,0.1);"><h3 style="margin:0 0 10px 0; font-size:22px;">Non perderti le migliori offerte pet!</h3><p style="margin:0 0 15px 0; font-size:15px;">Unisciti al canale Telegram di Zampamania per sconti e promozioni lampo dedicate a cani e gatti.</p><a href="https://t.me/TUOCANALE" target="_blank" style="background:#fff; color:#0284c7; padding:12px 25px; border-radius:6px; text-decoration:none; font-weight:bold; display:inline-block;">Unisciti al Canale Offerte</a></div>
+       - Sotto al banner Telegram, posiziona in secondo piano il link alla fonte originale: <div style="text-align:center; margin-top:20px;"><a href="{original_link}" target="_blank" style="color:#94a3b8; font-size:12px; text-decoration:underline;">Fonte originale della notizia</a></div>
     
     Titolo originale: {title}
     Contenuto originale: {summary}
     
-    RISPONDI RIGOROSAMENTE USANDO QUESTO FORMATO ESATTO (inclusi i prefissi in maiuscolo):
+    RISPONDI RIGOROSAMENTE USANDO QUESTO FORMATO:
     ===TITOLO===
     [Titolo accattivante in italiano]
     ===SEO===
-    [Meta description di circa 150 caratteri in italiano]
+    [Meta description di circa 150 caratteri]
     ===KEYWORD===
-    [2 o 3 parole chiave in inglese brevi, es. cute cat]
+    [2 o 3 parole chiave in inglese]
     ===CONTENUTO===
-    [Il corpo dell'articolo in HTML con i tag <p> e <h2> e il link finale]
+    [Il corpo dell'articolo in HTML con i tag <p>, <h2>, il banner Telegram e la fonte in fondo]
     """
 
+    # Ripristinato il sistema robusto di tentativi multipli con backoff
     models_to_try = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.7-flash']
     max_attempts = 5
     response = None
     success_model = False
 
     for model_name in models_to_try:
-        print(f"Inizio tentativi con il modello Gemini: {model_name}")
+        print(f"Tentativi con il modello: {model_name}")
         for attempt in range(1, max_attempts + 1):
             try:
-                print(f"Generazione con {model_name} (Tentativo {attempt}/{max_attempts})...")
-                response = client.models.generate_content(
-                    model=model_name,
-                    contents=prompt,
-                )
+                print(f"Generazione (Tentativo {attempt}/{max_attempts})...")
+                response = client.models.generate_content(model=model_name, contents=prompt)
                 success_model = True
-                print(f"Successo con il modello {model_name} al tentativo {attempt}!")
                 break
             except Exception as e:
-                print(f"Tentativo {attempt} fallito su {model_name}: {e}")
+                print(f"Tentativo {attempt} fallito: {e}")
                 if attempt < max_attempts:
-                    wait_time = attempt * 10
-                    print(f"Attendo {wait_time} secondi prima di riprovare...")
-                    time.sleep(wait_time)
-        
+                    time.sleep(attempt * 5)
         if success_model:
             break
 
     if not response:
-        raise RuntimeError("Impossibile completare la generazione: modelli non disponibili o chiave non valida.")
+        raise RuntimeError("Impossibile completare la generazione con i modelli IA.")
     
     text_response = response.text
     
     try:
         parts_title = text_response.split("===SEO===")
         title_part = parts_title[0].replace("===TITOLO===", "").strip()
-        
         parts_seo = parts_title[1].split("===KEYWORD===")
         seo_part = parts_seo[0].strip()
-        
         parts_kw = parts_seo[1].split("===CONTENUTO===")
         keyword_part = parts_kw[0].strip()
-        
         html_content = parts_kw[1].strip()
         
         new_title = title_part if title_part else title
         new_desc = seo_part if seo_part else summary[:150]
         image_keyword = keyword_part if keyword_part else "cute pet"
     except Exception as e:
-        print(f"Errore nel parsing della risposta IA: {e}. Uso valori di fallback.")
+        print(f"Errore nel parsing: {e}. Uso fallback.")
         new_title = title
-        new_desc = summary[:150] if summary else "Notizia dal mondo dei pet."
+        new_desc = summary[:150]
         image_keyword = "cute pet"
-        html_content = f"<p>{summary}</p><a href='{original_link}' target='_blank' style='display:inline-block; background:#0284c7; color:#fff; padding:10px 20px; border-radius:5px; text-decoration:none; font-weight:600; margin-top:15px;'>Fonte originale</a>"
+        html_content = f"<p>{summary}</p>"
 
-    # Verifica se l'articolo parla di gatti
     combined_text_check = (new_title + " " + new_desc + " " + image_keyword).lower()
     is_cat = any(k in combined_text_check for k in ['gatto', 'gatti', 'cat', 'cats', 'kitten', 'felin', 'micio'])
 
-    # Sanificazione keyword se troppo lunga o in italiano
-    if len(image_keyword.split()) > 4 or any(w in image_keyword.lower() for w in ['il', 'la', 'di', 'che', 'e', 'un', 'le', 'del', 'sette', 'storie']):
-        image_keyword = "cute domestic cat" if is_cat else "cute dog portrait"
-
-    print(f"Ricerca foto inedita con chiave: '{image_keyword}' (Target gatto: {is_cat})...")
     image_url = get_wikimedia_image(image_keyword, is_cat_article=is_cat, used_images=used_images)
 
     featured_image_html = f'<div style="text-align: center; margin-bottom: 25px;"><img src="{image_url}" alt="{new_title}" style="width: 100%; max-height: 450px; object-fit: cover; border-radius: 8px;"></div>'
@@ -316,32 +289,27 @@ def main():
     with open("articoli/template.html", "r", encoding="utf-8") as f:
         template = f.read()
 
-    article_html = template
-    article_html = article_html.replace("{{title}}", new_title)
-    article_html = article_html.replace("{{description}}", new_desc)
-    article_html = article_html.replace("{{date}}", current_date)
-    article_html = article_html.replace("{{content}}", html_content)
+    article_html = template.replace("{{title}}", new_title).replace("{{description}}", new_desc).replace("{{date}}", current_date).replace("{{content}}", html_content)
 
     with open(filename, "w", encoding="utf-8") as f:
         f.write(article_html)
 
-    print(f"Creato con successo il file: {filename}")
-
+    # Inserimento nella nuova griglia Magazine della Home
     with open("index.html", "r", encoding="utf-8") as f:
         index_content = f.read()
 
-    new_card = f"""
-            <div class="card">
-                <div class="card-icon"><i class="fa-solid fa-newspaper"></i></div>
-                <h3><a href="articoli/{slug}.html" style="text-decoration:none; color:inherit;">{new_title}</a></h3>
-                <div style="margin: 12px 0;"><img src="{image_url}" alt="{new_title}" style="width: 100%; height: 160px; object-fit: cover; border-radius: 6px;"></div>
-                <p>{new_desc}</p>
-                <span style="font-size: 12px; color: var(--gray); display:inline-block; margin-top:10px;"><i class="fa-regular fa-calendar"></i> {current_date}</span>
-            </div>
+    new_news_card = f"""
+            <article class="news-card" style="background:#fff; padding:20px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.05); margin-bottom:20px;">
+                <div style="margin-bottom: 12px;"><img src="{image_url}" alt="{new_title}" style="width: 100%; height: 200px; object-fit: cover; border-radius: 6px;"></div>
+                <span style="font-size: 12px; background:#e0f2fe; color:#0369a1; padding:4px 8px; border-radius:4px; font-weight:600;">News</span>
+                <h3 style="margin: 10px 0;"><a href="articoli/{slug}.html" style="text-decoration:none; color:#0f172a;">{new_title}</a></h3>
+                <p style="color:#475569; font-size:14px;">{new_desc}</p>
+                <span style="font-size: 12px; color: #94a3b8; display:inline-block; margin-top:10px;"><i class="fa-regular fa-calendar"></i> {current_date}</span>
+            </article>
     """
 
-    if '<div class="grid">' in index_content:
-        index_content = index_content.replace('<div class="grid">', f'<div class="grid">\n{new_card}')
+    if '<div class="news-feed">' in index_content:
+        index_content = index_content.replace('<div class="news-feed">', f'<div class="news-feed">\n{new_news_card}')
         with open("index.html", "w", encoding="utf-8") as f:
             f.write(index_content)
         print("Homepage aggiornata con successo.")
