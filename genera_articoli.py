@@ -143,34 +143,38 @@ def main():
     [Il corpo dell'articolo in HTML con i tag <p> e <h2> e il link finale]
     """
 
-    # Strategia di Fallback Multi-Modello (se 3.6-flash dà 503, passa a 1.5-flash)
-    models_to_try = ['gemini-3.6-flash', 'gemini-1.5-flash']
+    # Strategia basata su 8 tentativi per modello con attesa progressiva (15s, 30s, 45s, 60s...)
+    models_to_try = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.7-flash']
+    max_attempts = 8
     response = None
+    success_model = False
 
     for model_name in models_to_try:
-        print(f"Tentativo di generazione utilizzando il modello: {model_name}")
-        success_model = False
-        for attempt in range(3):
+        print(f"Inizio tentativi con il modello Gemini: {model_name}")
+        for attempt in range(1, max_attempts + 1):
             try:
+                print(f"Generazione con {model_name} (Tentativo {attempt}/{max_attempts})...")
                 response = client.models.generate_content(
                     model=model_name,
                     contents=prompt,
                 )
                 success_model = True
+                print(f"Successo con il modello {model_name} al tentativo {attempt}!")
                 break
             except Exception as e:
-                print(f"Modello {model_name} - Tentativo {attempt + 1}/3 fallito: {e}")
-                if attempt < 2:
-                    time.sleep(5)
+                print(f"Tentativo {attempt} fallito su {model_name}: {e}")
+                if attempt < max_attempts:
+                    wait_time = attempt * 15  # 15s, 30s, 45s, 60s, 75s, 90s, 105s
+                    print(f"Server occupati. Attendo {wait_time} secondi prima di riprovare...")
+                    time.sleep(wait_time)
         
         if success_model:
-            print(f"Generazione riuscita con successo usando {model_name}!")
             break
         else:
-            print(f"Il modello {model_name} non è disponibile, provo con il modello successivo...")
+            print(f"Tutti i {max_attempts} tentativi esauriti per {model_name}. Passo al modello successivo...")
 
     if not response:
-        raise RuntimeError("Impossibile completare la generazione: tutti i modelli configurati sono attualmente sovraccarichi.")
+        raise RuntimeError("Impossibile completare la generazione: tutti i modelli Gemini configurati sono rimasti sovraccarichi dopo vari cicli di tentativi.")
     
     text_response = response.text
     
