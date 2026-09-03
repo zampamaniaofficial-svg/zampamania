@@ -1,6 +1,7 @@
 import os
 import re
 import datetime
+import time
 import feedparser
 import random
 from google import genai
@@ -57,7 +58,6 @@ def main():
 
     print(f"Elaborazione in corso per: {title}")
 
-    # Prompt aggiornato con gestione traduzione da fonti straniere e riscrittura originale
     prompt = f"""
     Sei un caporedattore ed esperto giornalista specializzato nel mondo degli animali domestici ('Zampamania'), cani e gatti, e nella cura dei pet.
     Partendo dalle informazioni e dai temi trattati in questa notizia:
@@ -77,10 +77,24 @@ def main():
     CONTENUTO_HTML: [Il corpo dell'articolo formattato con tag HTML, inclusi il link finale]
     """
 
-    response = client.models.generate_content(
-        model='gemini-3.6-flash',
-        contents=prompt,
-    )
+    # Sistema di retry automatico in caso di errore 503 o sovraccarico temporaneo
+    response = None
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            response = client.models.generate_content(
+                model='gemini-3.6-flash',
+                contents=prompt,
+            )
+            break
+        except Exception as e:
+            print(f"Tentativo {attempt + 1} fallito: {e}")
+            if attempt < max_retries - 1:
+                wait_time = (attempt + 1) * 10
+                print(f"Attendo {wait_time} secondi prima di riprovare...")
+                time.sleep(wait_time)
+            else:
+                raise e
     
     text_response = response.text
     
@@ -100,23 +114,19 @@ def main():
 
     current_date = datetime.date.today().strftime("%d/%m/%Y")
 
-    # Leggi il template HTML
     with open("articoli/template.html", "r", encoding="utf-8") as f:
         template = f.read()
 
-    # Inserisci i dati dinamici nel template
     article_html = template.replace("{{title}}", new_title)
     article_html = article_html.replace("{{description}}", new_desc)
     article_html = article_html.replace("{{date}}", current_date)
     article_html = article_html.replace("{{content}}", html_content)
 
-    # Salva il file della notizia
     with open(filename, "w", encoding="utf-8") as f:
         f.write(article_html)
 
     print(f"Creato con successo il file: {filename}")
 
-    # Aggiorna la homepage index.html inserendo la card dell'articolo in cima alla griglia
     with open("index.html", "r", encoding="utf-8") as f:
         index_content = f.read()
 
