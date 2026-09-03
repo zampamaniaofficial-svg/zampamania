@@ -182,7 +182,8 @@ def main():
     [Il corpo dell'articolo in HTML con i tag <p> e <h2> e il link finale]
     """
 
-    models_to_try = ['gemini-2.5-flash', 'gemini-1.5-flash']
+    # Aggiornato con i modelli corretti suggeriti da Google AI Studio
+    models_to_try = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.7-flash']
     max_attempts = 5
     response = None
     success_model = False
@@ -210,7 +211,7 @@ def main():
             break
 
     if not response:
-        raise RuntimeError("Impossibile completare la generazione: errore di autenticazione o modelli non disponibili.")
+        raise RuntimeError("Impossibile completare la generazione: modelli non disponibili o chiave non valida.")
     
     text_response = response.text
     
