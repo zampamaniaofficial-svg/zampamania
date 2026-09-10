@@ -3,9 +3,6 @@ import re
 import datetime
 import time
 import random
-import urllib.parse
-import urllib.request
-import json
 import socket
 import feedparser
 from google import genai
@@ -81,59 +78,45 @@ def get_existing_images():
                     pass
     return used
 
-def get_wikimedia_image(query_str, is_cat_article=False, used_images=None):
+def get_local_pet_image(is_cat_article=False, used_images=None):
     if used_images is None:
         used_images = set()
         
-    cat_fallbacks = [
-        "https://upload.wikimedia.org/wikipedia/commons/3/3a/Cat03.jpg",
-        "https://upload.wikimedia.org/wikipedia/commons/b/b6/Felis_catus-cat_on_snow.jpg",
-        "https://upload.wikimedia.org/wikipedia/commons/4/4d/Cat_November_2010-1a.jpg",
-        "https://upload.wikimedia.org/wikipedia/commons/6/68/Orange_tabby_cat_sitting_on_fallen_leaves-Hisashi-01A.jpg"
-    ]
-    dog_fallbacks = [
-        "https://upload.wikimedia.org/wikipedia/commons/4/47/American_Eskimo_Dog.jpg",
-        "https://upload.wikimedia.org/wikipedia/commons/9/90/Labrador_Retriever_portrait.jpg",
-        "https://upload.wikimedia.org/wikipedia/commons/f/f8/Full_size_border_collie.jpg",
-        "https://upload.wikimedia.org/wikipedia/commons/3/34/Labrador_on_Quantock_Hills.jpg"
-    ]
+    cat_folder = "immagini_gatti"
+    dog_folder = "immagini_cani"
     
-    clean_query = re.sub(r'[^a-zA-Z0-9\s]', '', query_str)
-    if not clean_query.strip():
-        clean_query = "domestic cat portrait" if is_cat_article else "dog portrait"
+    target_folder = cat_folder if is_cat_article else dog_folder
+    fallback_folder = dog_folder if is_cat_article else cat_folder
+    
+    valid_extensions = ('.jpg', '.jpeg', '.png', '.webp', '.avif')
+    
+    def scan_folder(folder):
+        images = []
+        if os.path.exists(folder) and os.path.isdir(folder):
+            for fname in os.listdir(folder):
+                if fname.lower().endswith(valid_extensions):
+                    images.append(f"{folder}/{fname}")
+        return images
+
+    available_images = scan_folder(target_folder)
+    normalized_used = {img.replace("../", "") for img in used_images}
+    
+    unused_images = [img for img in available_images if img not in normalized_used]
+    
+    if unused_images:
+        return random.choice(unused_images)
         
-    encoded_query = urllib.parse.quote(clean_query)
-    url = f"https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch={encoded_query}&gsrnamespace=6&gsrlimit=20&prop=imageinfo&iiprop=url&format=json"
+    fallback_available = scan_folder(fallback_folder)
+    unused_fallback = [img for img in fallback_available if img not in normalized_used]
     
-    req = urllib.request.Request(
-        url, 
-        headers={'User-Agent': 'ZampamaniaNewsBot/2.0 (Professional Pet Journal)'}
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=10) as response:
-            data = json.loads(response.read().decode('utf-8'))
-            pages = data.get("query", {}).get("pages", {})
-            for page_id, page in pages.items():
-                imageinfo = page.get("imageinfo", [])
-                if imageinfo:
-                    img_url = imageinfo[0].get("url")
-                    if img_url and any(img_url.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png']):
-                        img_lower = img_url.lower()
-                        if is_cat_article and 'dog' in img_lower and 'cat' not in img_lower:
-                            continue
-                        if not is_cat_article and 'cat' in img_lower and 'dog' not in img_lower:
-                            continue
-                        if img_url not in used_images:
-                            return img_url
-    except Exception as e:
-        print(f"Errore nella ricerca immagine Wikimedia: {e}")
-    
-    fallbacks = cat_fallbacks if is_cat_article else dog_fallbacks
-    for fb in fallbacks:
-        if fb not in used_images:
-            return fb
-            
-    return fallbacks[0]
+    if unused_fallback:
+        return random.choice(unused_fallback)
+        
+    all_images = available_images + fallback_available
+    if all_images:
+        return random.choice(all_images)
+        
+    return f"{cat_folder}/default.jpg" if is_cat_article else f"{dog_folder}/default.jpg"
 
 def main():
     api_key = os.environ.get("GEMINI_API_KEY")
@@ -219,7 +202,7 @@ def main():
     
     REGOLE TASSATIVE:
     1. L'articolo deve trattare ESCLUSIVAMENTE di cani, gatti o animali domestici.
-    2. LUNGHZEA E APPROFONDIMENTO: L'articolo deve essere corposo e strutturato in modo esaustivo. Scrivi almeno 4 o 5 paragrafi dettagliati (<p>), intervallati da almeno 2 o 3 sottotitoli informativi (<h2>). Espandi la notizia analizzando il contesto, i consigli pratici per i proprietari di animali e l'impatto della notizia stessa.
+    2. LUNGHEZZA E APPROFONDIMENTO: L'articolo deve essere corposo e strutturato in modo esaustivo. Scrivi almeno 4 o 5 paragrafi dettagliati (<p>), intervallati da almeno 2 o 3 sottotitoli informativi (<h2>). Espandi la notizia analizzando il contesto, i consigli pratici per i proprietari di animali e l'impatto della notizia stessa.
     3. Struttura l'output in formato HTML puro (senza blocchi markdown).
     4. Fornisci MASSIMO 2 o 3 parole chiave in inglese brevi per la foto (es. "cute cat portrait").
     5. ALLA FINE DELL'ARTICOLO inserisci rigorosamente:
@@ -240,7 +223,7 @@ def main():
     [Il corpo esteso e dettagliato dell'articolo in HTML con i tag <p>, <h2>, il banner Telegram e la fonte in fondo]
     """
 
-    # Modelli aggiornati distribuiti in rotazione per evitare il limite RPD (20 richieste/giorno sul piano gratuito)
+    # Modelli aggiornati e ordinati in modo inverso per la rotazione
     models_to_try = [
         "gemini-3.8-flash",
         "gemini-3.7-flash",
@@ -300,9 +283,13 @@ def main():
     combined_text_check = (new_title + " " + new_desc + " " + image_keyword).lower()
     is_cat = any(k in combined_text_check for k in ['gatto', 'gatti', 'cat', 'cats', 'kitten', 'felin', 'micio'])
 
-    image_url = get_wikimedia_image(image_keyword, is_cat_article=is_cat, used_images=used_images)
+    # Ricerca immagine dalle cartelle locali GitHub con controllo anti-duplicati e specie
+    image_url = get_local_pet_image(is_cat_article=is_cat, used_images=used_images)
 
-    featured_image_html = f'<div style="text-align: center; margin-bottom: 25px; aspect-ratio: 16/9; max-height: 450px; overflow: hidden; border-radius: 8px;"><img src="{image_url}" alt="{new_title}" style="width: 100%; height: 100%; object-fit: cover;"></div>'
+    # Percorso immagine adattato per la pagina di dettaglio (nella cartella /articoli)
+    article_image_url = f"../{image_url}"
+
+    featured_image_html = f'<div style="text-align: center; margin-bottom: 25px; aspect-ratio: 16/9; max-height: 450px; overflow: hidden; border-radius: 8px;"><img src="{article_image_url}" alt="{new_title}" style="width: 100%; height: 100%; object-fit: cover;"></div>'
     html_content = featured_image_html + html_content
 
     current_date = datetime.date.today().strftime("%d/%m/%Y")
@@ -315,7 +302,7 @@ def main():
     with open(filename, "w", encoding="utf-8") as f:
         f.write(article_html)
 
-    # Inserimento nella nuova griglia Magazine della Home
+    # Inserimento nella griglia Magazine della Home
     with open("index.html", "r", encoding="utf-8") as f:
         index_content = f.read()
 
