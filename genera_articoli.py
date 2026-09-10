@@ -176,6 +176,14 @@ def main():
             entry_title = entry.get('title', '')
             entry_summary = entry.get('summary', '')
             
+            # Controllo data: scarta notizie più vecchie di 30 giorni
+            pub_date = entry.get('published_parsed') or entry.get('updated_parsed')
+            if pub_date:
+                article_date = datetime.datetime.fromtimestamp(time.mktime(pub_date))
+                max_age_days = 30
+                if (datetime.datetime.now() - article_date).days > max_age_days:
+                    continue  # Salta l'articolo se risale a più di un mese fa
+            
             temp_slug = slugify(entry_title)
             if not temp_slug:
                 continue
@@ -206,14 +214,15 @@ def main():
         raise RuntimeError("Impossibile trovare alcun articolo inedito sulle fonti RSS.")
 
     prompt = f"""
-    Sei il caporedattore del magazine online 'Zampamania', esperto in cinofilia e felinologia.
-    Riscrivi la seguente notizia in un italiano giornalistico eccellente, curato, accattivante e professionale.
+    Sei il caporedattore senior del magazine online 'Zampamania', esperto di fama in cinofilia e felinologia.
+    Riscrivi la seguente notizia in un italiano giornalistico eccellente, curato, molto approfondito, accattivante e professionale.
     
     REGOLE TASSATIVE:
     1. L'articolo deve trattare ESCLUSIVAMENTE di cani, gatti o animali domestici.
-    2. Struttura l'output in formato HTML puro (senza blocchi markdown), usando tag <p> per i paragrafi e <h2> per i sottotitoli.
-    3. Fornisci MASSIMO 2 o 3 parole chiave in inglese brevi per la foto (es. "cute cat portrait").
-    4. ALLA FINE DELL'ARTICOLO inserisci rigorosamente:
+    2. LUNGHZEA E APPROFONDIMENTO: L'articolo deve essere corposo e strutturato in modo esaustivo. Scrivi almeno 4 o 5 paragrafi dettagliati (<p>), intervallati da almeno 2 o 3 sottotitoli informativi (<h2>). Espandi la notizia analizzando il contesto, i consigli pratici per i proprietari di animali e l'impatto della notizia stessa.
+    3. Struttura l'output in formato HTML puro (senza blocchi markdown).
+    4. Fornisci MASSIMO 2 o 3 parole chiave in inglese brevi per la foto (es. "cute cat portrait").
+    5. ALLA FINE DELL'ARTICOLO inserisci rigorosamente:
         - Un box banner d'impatto per Telegram: <div style="background:#0284c7; color:#fff; padding:25px; border-radius:10px; text-align:center; margin:35px 0; box-shadow:0 4px 6px rgba(0,0,0,0.1);"><h3 style="margin:0 0 10px 0; font-size:22px;">Non perderti le migliori offerte pet!</h3><p style="margin:0 0 15px 0; font-size:15px;">Unisciti al canale Telegram di Zampamania per sconti e promozioni lampo dedicate a cani e gatti.</p><a href="https://t.me/TUOCANALE" target="_blank" style="background:#fff; color:#0284c7; padding:12px 25px; border-radius:6px; text-decoration:none; font-weight:bold; display:inline-block;">Unisciti al Canale Offerte</a></div>
         - Sotto al banner Telegram, posiziona in secondo piano il link alla fonte originale: <div style="text-align:center; margin-top:20px;"><a href="{original_link}" target="_blank" style="color:#94a3b8; font-size:12px; text-decoration:underline;">Fonte originale della notizia</a></div>
     
@@ -228,7 +237,7 @@ def main():
     ===KEYWORD===
     [2 o 3 parole chiave in inglese]
     ===CONTENUTO===
-    [Il corpo dell'articolo in HTML con i tag <p>, <h2>, il banner Telegram e la fonte in fondo]
+    [Il corpo esteso e dettagliato dell'articolo in HTML con i tag <p>, <h2>, il banner Telegram e la fonte in fondo]
     """
 
     # Modelli aggiornati distribuiti in rotazione per evitare il limite RPD (20 richieste/giorno sul piano gratuito)
