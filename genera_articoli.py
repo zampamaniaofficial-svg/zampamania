@@ -214,8 +214,8 @@ def main():
     2. Struttura l'output in formato HTML puro (senza blocchi markdown), usando tag <p> per i paragrafi e <h2> per i sottotitoli.
     3. Fornisci MASSIMO 2 o 3 parole chiave in inglese brevi per la foto (es. "cute cat portrait").
     4. ALLA FINE DELL'ARTICOLO inserisci rigorosamente:
-       - Un box banner d'impatto per Telegram: <div style="background:#0284c7; color:#fff; padding:25px; border-radius:10px; text-align:center; margin:35px 0; box-shadow:0 4px 6px rgba(0,0,0,0.1);"><h3 style="margin:0 0 10px 0; font-size:22px;">Non perderti le migliori offerte pet!</h3><p style="margin:0 0 15px 0; font-size:15px;">Unisciti al canale Telegram di Zampamania per sconti e promozioni lampo dedicate a cani e gatti.</p><a href="https://t.me/TUOCANALE" target="_blank" style="background:#fff; color:#0284c7; padding:12px 25px; border-radius:6px; text-decoration:none; font-weight:bold; display:inline-block;">Unisciti al Canale Offerte</a></div>
-       - Sotto al banner Telegram, posiziona in secondo piano il link alla fonte originale: <div style="text-align:center; margin-top:20px;"><a href="{original_link}" target="_blank" style="color:#94a3b8; font-size:12px; text-decoration:underline;">Fonte originale della notizia</a></div>
+        - Un box banner d'impatto per Telegram: <div style="background:#0284c7; color:#fff; padding:25px; border-radius:10px; text-align:center; margin:35px 0; box-shadow:0 4px 6px rgba(0,0,0,0.1);"><h3 style="margin:0 0 10px 0; font-size:22px;">Non perderti le migliori offerte pet!</h3><p style="margin:0 0 15px 0; font-size:15px;">Unisciti al canale Telegram di Zampamania per sconti e promozioni lampo dedicate a cani e gatti.</p><a href="https://t.me/TUOCANALE" target="_blank" style="background:#fff; color:#0284c7; padding:12px 25px; border-radius:6px; text-decoration:none; font-weight:bold; display:inline-block;">Unisciti al Canale Offerte</a></div>
+        - Sotto al banner Telegram, posiziona in secondo piano il link alla fonte originale: <div style="text-align:center; margin-top:20px;"><a href="{original_link}" target="_blank" style="color:#94a3b8; font-size:12px; text-decoration:underline;">Fonte originale della notizia</a></div>
     
     Titolo originale: {title}
     Contenuto originale: {summary}
@@ -231,8 +231,17 @@ def main():
     [Il corpo dell'articolo in HTML con i tag <p>, <h2>, il banner Telegram e la fonte in fondo]
     """
 
-    models_to_try = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.7-flash']
-    max_attempts = 5
+    # Modelli aggiornati distribuiti in rotazione per evitare il limite RPD (20 richieste/giorno sul piano gratuito)
+    models_to_try = [
+        'gemini-3.5-flash-lite', 
+        'gemini-3.1-flash-lite', 
+        'gemini-2.5-flash-lite', 
+        'gemini-3.5-flash', 
+        'gemini-3.6-flash', 
+        'gemini-3.7-flash', 
+        'gemini-3.8-flash'
+    ]
+    max_attempts = 3
     response = None
     success_model = False
 
@@ -245,14 +254,14 @@ def main():
                 success_model = True
                 break
             except Exception as e:
-                print(f"Tentativo {attempt} fallito: {e}")
+                print(f"Tentativo {attempt} fallito con {model_name}: {e}")
                 if attempt < max_attempts:
-                    time.sleep(attempt * 5)
+                    time.sleep(attempt * 3)
         if success_model:
             break
 
     if not response:
-        raise RuntimeError("Impossibile completare la generazione con i modelli IA.")
+        raise RuntimeError("Impossibile completare la generazione: limiti giornalieri (RPD) esauriti su tutti i modelli disponibili.")
     
     text_response = response.text
     
