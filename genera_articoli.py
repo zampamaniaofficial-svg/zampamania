@@ -233,13 +233,17 @@ def main():
 
     # Modelli aggiornati distribuiti in rotazione per evitare il limite RPD (20 richieste/giorno sul piano gratuito)
     models_to_try = [
-        'gemini-3.5-flash-lite', 
-        'gemini-3.1-flash-lite', 
-        'gemini-2.5-flash-lite', 
-        'gemini-3.5-flash', 
-        'gemini-3.6-flash', 
-        'gemini-3.7-flash', 
-        'gemini-3.8-flash'
+        "gemini-3.8-flash",
+        "gemini-3.7-flash",
+        "gemini-3.6-flash",
+        "gemini-3.5-flash-lite",
+        "gemini-3.5-flash",
+        "gemini-3.1-flash-lite",
+        "gemini-3-flash",
+        "gemini-2.5-flash-lite",
+        "gemini-2.5-flash",
+        "gemini-2-flash-lite",
+        "gemini-2-flash"
     ]
     max_attempts = 3
     response = None
