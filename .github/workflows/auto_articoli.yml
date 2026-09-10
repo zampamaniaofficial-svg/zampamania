@@ -5,6 +5,8 @@ on:
     - cron: '0 7 * * *'   # Mattina (07:00 UTC / 09:00 ora italiana)
     - cron: '0 15 * * *'  # Pomeriggio (15:00 UTC / 17:00 ora italiana)
   workflow_dispatch:      # Consente anche l'avvio manuale dalla scheda Actions
+  repository_dispatch:
+    types: [telegram_action]
 
 jobs:
   build:
