@@ -233,7 +233,24 @@ def main():
     Contenuto originale: {summary}
     """
 
-    response = client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
+    # Lista di modelli con fallback automatico
+    models_to_try = ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-1.5-flash"]
+    response = None
+    
+    for model_name in models_to_try:
+        try:
+            print(f"Tentativo di generazione con il modello: {model_name}...")
+            response = client.models.generate_content(model=model_name, contents=prompt)
+            if response and response.text:
+                print(f"Generazione riuscita con successo usando {model_name}!")
+                break
+        except Exception as e:
+            print(f"Modello {model_name} non disponibile o errore: {e}. Provo il successivo...")
+            continue
+
+    if not response or not response.text:
+        raise RuntimeError("Tutti i modelli Gemini configurati hanno fallito la generazione.")
+
     text_response = response.text
 
     try:
