@@ -1,11 +1,9 @@
 import os
 import re
 import datetime
-import time
 import random
 import socket
 import json
-import subprocess
 import requests
 import feedparser
 from google import genai
@@ -170,13 +168,26 @@ def publish_article(draft_data):
         with open("index.html", "w", encoding="utf-8") as f:
             f.write(index_content)
 
-    subprocess.run(["git", "add", "."])
-    subprocess.run(["git", "commit", "-m", f"Pubblicazione articolo approvato: {new_title}"])
-    subprocess.run(["git", "push"])
-    print("Articolo pubblicato e inviato su GitHub con successo!")
+    print("Articolo pubblicato con successo!")
 
 def main():
     api_key = os.environ.get("GEMINI_API_KEY")
+    dispatch_payload = os.environ.get("DISPATCH_PAYLOAD")
+
+    # Se attivato dal click su Telegram, pubblica la bozza esistente
+    if dispatch_payload == "approve":
+        print("Ricevuto segnale di approvazione da Telegram...")
+        if os.path.exists("bozza_corrente.json"):
+            with open("bozza_corrente.json", "r", encoding="utf-8") as f:
+                draft_data = json.load(f)
+            publish_article(draft_data)
+            if os.path.exists("bozza_corrente.json"):
+                os.remove("bozza_corrente.json")
+        else:
+            print("Errore: Nessuna bozza trovata da pubblicare.")
+        return
+
+    # Flusso standard: generazione della bozza
     if not api_key:
         raise ValueError("API Key di Gemini non trovata nelle variabili d'ambiente.")
 
@@ -233,8 +244,7 @@ def main():
     Contenuto originale: {summary}
     """
 
-    # Lista di modelli con fallback automatico
-    models_to_try = ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-1.5-flash"]
+    models_to_try = ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-3.5-flash"]
     response = None
     
     for model_name in models_to_try:
@@ -286,48 +296,9 @@ def main():
         ]
     }
     
-    msg_text = f"<b>Nuova Bozza Generata!</b>\n\n<b>Titolo:</b> {new_title}\n\n<i>Scegli un'azione o scrivi una modifica al titolo in chat:</i>"
+    msg_text = f"<b>Nuova Bozza Generata!</b>\n\n<b>Titolo:</b> {new_title}\n\n<i>Scegli un'azione:</i>"
     send_telegram_message(msg_text, reply_markup=keyboard)
-    print("Bozza inviata su Telegram in attesa di approvazione...")
-
-    offset = None
-    while True:
-        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates"
-        if offset:
-            url += f"?offset={offset}"
-        try:
-            res = requests.get(url, timeout=10).json()
-            for result in res.get("result", []):
-                offset = result["update_id"] + 1
-                
-                if "callback_query" in result:
-                    callback = result["callback_query"]
-                    data = callback["data"]
-                    chat_id = callback["message"]["chat"]["id"]
-                    
-                    if str(chat_id) == str(TELEGRAM_CHAT_ID):
-                        if data == "approve":
-                            send_telegram_message("🚀 Approvazione ricevuta! Pubblicazione in corso...")
-                            publish_article(draft_data)
-                            return
-                        elif data == "discard":
-                            send_telegram_message("🗑️ Articolo scartato con successo.")
-                            if os.path.exists("bozza_corrente.json"):
-                                os.remove("bozza_corrente.json")
-                            return
-                            
-                elif "message" in result:
-                    msg = result["message"]
-                    chat_id = msg["chat"]["id"]
-                    if str(chat_id) == str(TELEGRAM_CHAT_ID) and "text" in msg:
-                        new_text = msg["text"]
-                        draft_data["title"] = new_text
-                        with open("bozza_corrente.json", "w", encoding="utf-8") as f:
-                            json.dump(draft_data, f, ensure_ascii=False, indent=4)
-                        send_telegram_message(f"✏️ <b>Titolo aggiornato con successo!</b>\nNuovo titolo: {new_text}\n\nConfermi la pubblicazione?", reply_markup=keyboard)
-        except Exception as e:
-            print(f"Errore nel polling Telegram: {e}")
-        time.sleep(3)
+    print("Bozza inviata su Telegram in attesa di approvazione. Esecuzione terminata correttamente.")
 
 if __name__ == "__main__":
     main()
