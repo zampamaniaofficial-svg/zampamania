@@ -4,13 +4,26 @@ import datetime
 import time
 import random
 import socket
+import json
+import subprocess
+import requests
 import feedparser
 from google import genai
 
 # Timeout globale di sicurezza sulle connessioni di rete
 socket.setdefaulttimeout(15)
 
-# Elenco completo delle fonti RSS
+# Caricamento delle credenziali dal file separato config.json
+CONFIG_FILE = "config.json"
+if os.path.exists(CONFIG_FILE):
+    with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+        config = json.load(f)
+        TELEGRAM_BOT_TOKEN = config.get("telegram_bot_token", "")
+        TELEGRAM_CHAT_ID = config.get("telegram_chat_id", "")
+else:
+    TELEGRAM_BOT_TOKEN = ""
+    TELEGRAM_CHAT_ID = ""
+
 RSS_SOURCES = [
     "https://www.kodami.it/feed/",
     "https://www.dogster.com/feed",
@@ -64,30 +77,15 @@ def get_existing_images():
                     used.add(s)
         except Exception:
             pass
-            
-    if os.path.exists("articoli"):
-        for fname in os.listdir("articoli"):
-            if fname.endswith(".html"):
-                try:
-                    with open(os.path.join("articoli", fname), "r", encoding="utf-8") as f:
-                        content = f.read()
-                        srcs = re.findall(r'<img[^>]+src="([^">]+)"', content)
-                        for s in srcs:
-                            used.add(s)
-                except Exception:
-                    pass
     return used
 
 def get_local_pet_image(is_cat_article=False, used_images=None):
     if used_images is None:
         used_images = set()
-        
     cat_folder = "immagini_gatti"
     dog_folder = "immagini_cani"
-    
     target_folder = cat_folder if is_cat_article else dog_folder
     fallback_folder = dog_folder if is_cat_article else cat_folder
-    
     valid_extensions = ('.jpg', '.jpeg', '.png', '.webp', '.avif')
     
     def scan_folder(folder):
@@ -100,209 +98,60 @@ def get_local_pet_image(is_cat_article=False, used_images=None):
 
     available_images = scan_folder(target_folder)
     normalized_used = {img.replace("../", "") for img in used_images}
-    
     unused_images = [img for img in available_images if img not in normalized_used]
     
     if unused_images:
         return random.choice(unused_images)
-        
     fallback_available = scan_folder(fallback_folder)
     unused_fallback = [img for img in fallback_available if img not in normalized_used]
-    
     if unused_fallback:
         return random.choice(unused_fallback)
-        
     all_images = available_images + fallback_available
     if all_images:
         return random.choice(all_images)
-        
     return f"{cat_folder}/default.jpg" if is_cat_article else f"{dog_folder}/default.jpg"
 
-def main():
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        raise ValueError("API Key non trovata nelle variabili d'ambiente.")
+def send_telegram_message(text, reply_markup=None):
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": text,
+        "parse_mode": "HTML"
+    }
+    if reply_markup:
+        payload["reply_markup"] = json.dumps(reply_markup)
+    response = requests.post(url, json=payload)
+    return response.json()
 
-    client = genai.Client(api_key=api_key)
-    used_images = get_existing_images()
-
-    shuffled_sources = list(RSS_SOURCES)
-    random.shuffle(shuffled_sources)
-
-    selected_entry = None
-    slug = ""
-    filename = ""
-    original_link = ""
-    title = ""
-    summary = ""
-    found_article = False
-    sources_checked = 0
-
-    while not found_article and shuffled_sources:
-        rss_url = shuffled_sources.pop(0)
-        sources_checked += 1
-        print(f"[{sources_checked}] Controllo feed RSS dalla fonte: {rss_url}...")
-
-        try:
-            feed = feedparser.parse(rss_url)
-        except Exception as e:
-            print(f"Errore nel parsing del feed {rss_url}: {e}")
-            continue
-
-        if not feed.entries:
-            continue
-
-        entries = list(feed.entries)
-        random.shuffle(entries)
-
-        for entry in entries:
-            entry_title = entry.get('title', '')
-            entry_summary = entry.get('summary', '')
-            
-            # Controllo data: scarta notizie più vecchie di 30 giorni
-            pub_date = entry.get('published_parsed') or entry.get('updated_parsed')
-            if pub_date:
-                article_date = datetime.datetime.fromtimestamp(time.mktime(pub_date))
-                max_age_days = 30
-                if (datetime.datetime.now() - article_date).days > max_age_days:
-                    continue  # Salta l'articolo se risale a più di un mese fa
-            
-            temp_slug = slugify(entry_title)
-            if not temp_slug:
-                continue
-                
-            temp_filename = f"articoli/{temp_slug}.html"
-            if os.path.exists(temp_filename):
-                continue
-
-            text_to_check = (entry_title + " " + entry_summary).lower()
-            is_valid_pet = any(keyword in text_to_check for keyword in [
-                'cane', 'cani', 'dog', 'dogs', 'puppy', 'puppies', 'cucciolo', 'cuccioli',
-                'gatto', 'gatti', 'cat', 'cats', 'kitten', 'kittens', 'gattino', 'gattini',
-                'feline', 'canine', 'pet', 'pets', 'animale', 'animali'
-            ])
-
-            if is_valid_pet:
-                selected_entry = entry
-                title = entry_title
-                summary = entry_summary
-                original_link = entry.get('link', '#')
-                slug = temp_slug
-                filename = temp_filename
-                found_article = True
-                print(f"Articolo valido trovato: {title}")
-                break
-
-    if not found_article:
-        raise RuntimeError("Impossibile trovare alcun articolo inedito sulle fonti RSS.")
-
-    prompt = f"""
-    Sei il caporedattore senior del magazine online 'Zampamania', esperto di fama in cinofilia e felinologia.
-    Riscrivi la seguente notizia in un italiano giornalistico eccellente, curato, molto approfondito, accattivante e professionale.
-    
-    REGOLE TASSATIVE:
-    1. L'articolo deve trattare ESCLUSIVAMENTE di cani, gatti o animali domestici.
-    2. LUNGHEZZA E APPROFONDIMENTO: L'articolo deve essere corposo e strutturato in modo esaustivo. Scrivi almeno 4 o 5 paragrafi dettagliati (<p>), intervallati da almeno 2 o 3 sottotitoli informativi (<h2>). Espandi la notizia analizzando il contesto, i consigli pratici per i proprietari di animali e l'impatto della notizia stessa.
-    3. Struttura l'output in formato HTML puro (senza blocchi markdown).
-    4. Fornisci MASSIMO 2 o 3 parole chiave in inglese brevi per la foto (es. "cute cat portrait").
-    5. ALLA FINE DELL'ARTICOLO inserisci rigorosamente:
-        - Un box banner d'impatto per Telegram: <div style="background:#0284c7; color:#fff; padding:25px; border-radius:10px; text-align:center; margin:35px 0; box-shadow:0 4px 6px rgba(0,0,0,0.1);"><h3 style="margin:0 0 10px 0; font-size:22px;">Non perderti le migliori offerte pet!</h3><p style="margin:0 0 15px 0; font-size:15px;">Unisciti al canale Telegram di Zampamania per sconti e promozioni lampo dedicate a cani e gatti.</p><a href="https://t.me/TUOCANALE" target="_blank" style="background:#fff; color:#0284c7; padding:12px 25px; border-radius:6px; text-decoration:none; font-weight:bold; display:inline-block;">Unisciti al Canale Offerte</a></div>
-        - Sotto al banner Telegram, posiziona in secondo piano il link alla fonte originale: <div style="text-align:center; margin-top:20px;"><a href="{original_link}" target="_blank" style="color:#94a3b8; font-size:12px; text-decoration:underline;">Fonte originale della notizia</a></div>
-    
-    Titolo originale: {title}
-    Contenuto originale: {summary}
-    
-    RISPONDI RIGOROSAMENTE USANDO QUESTO FORMATO:
-    ===TITOLO===
-    [Titolo accattivante in italiano]
-    ===SEO===
-    [Meta description di circa 150 caratteri]
-    ===KEYWORD===
-    [2 o 3 parole chiave in inglese]
-    ===CONTENUTO===
-    [Il corpo esteso e dettagliato dell'articolo in HTML con i tag <p>, <h2>, il banner Telegram e la fonte in fondo]
-    """
-
-    # Modelli aggiornati e ordinati in modo inverso per la rotazione
-    models_to_try = [
-        "gemini-3.8-flash",
-        "gemini-3.7-flash",
-        "gemini-3.6-flash",
-        "gemini-3.5-flash-lite",
-        "gemini-3.5-flash",
-        "gemini-3.1-flash-lite",
-        "gemini-3-flash",
-        "gemini-2.5-flash-lite",
-        "gemini-2.5-flash",
-        "gemini-2-flash-lite",
-        "gemini-2-flash"
-    ]
-    max_attempts = 3
-    response = None
-    success_model = False
-
-    for model_name in models_to_try:
-        print(f"Tentativi con il modello: {model_name}")
-        for attempt in range(1, max_attempts + 1):
-            try:
-                print(f"Generazione (Tentativo {attempt}/{max_attempts})...")
-                response = client.models.generate_content(model=model_name, contents=prompt)
-                success_model = True
-                break
-            except Exception as e:
-                print(f"Tentativo {attempt} fallito con {model_name}: {e}")
-                if attempt < max_attempts:
-                    time.sleep(attempt * 3)
-        if success_model:
-            break
-
-    if not response:
-        raise RuntimeError("Impossibile completare la generazione: limiti giornalieri (RPD) esauriti su tutti i modelli disponibili.")
-    
-    text_response = response.text
-    
-    try:
-        parts_title = text_response.split("===SEO===")
-        title_part = parts_title[0].replace("===TITOLO===", "").strip()
-        parts_seo = parts_title[1].split("===KEYWORD===")
-        seo_part = parts_seo[0].strip()
-        parts_kw = parts_seo[1].split("===CONTENUTO===")
-        keyword_part = parts_kw[0].strip()
-        html_content = parts_kw[1].strip()
-        
-        new_title = title_part if title_part else title
-        new_desc = seo_part if seo_part else summary[:150]
-        image_keyword = keyword_part if keyword_part else "cute pet"
-    except Exception as e:
-        print(f"Errore nel parsing: {e}. Uso fallback.")
-        new_title = title
-        new_desc = summary[:150]
-        image_keyword = "cute pet"
-        html_content = f"<p>{summary}</p>"
-
-    combined_text_check = (new_title + " " + new_desc + " " + image_keyword).lower()
-    is_cat = any(k in combined_text_check for k in ['gatto', 'gatti', 'cat', 'cats', 'kitten', 'felin', 'micio'])
-
-    # Ricerca immagine dalle cartelle locali GitHub con controllo anti-duplicati e specie
-    image_url = get_local_pet_image(is_cat_article=is_cat, used_images=used_images)
-
-    # Percorso immagine adattato per la pagina di dettaglio (nella cartella /articoli)
-    article_image_url = f"../{image_url}"
-
-    featured_image_html = f'<div style="text-align: center; margin-bottom: 25px; aspect-ratio: 16/9; max-height: 450px; overflow: hidden; border-radius: 8px;"><img src="{article_image_url}" alt="{new_title}" style="width: 100%; height: 100%; object-fit: cover;"></div>'
-    html_content = featured_image_html + html_content
-
+def publish_article(draft_data):
+    slug = draft_data["slug"]
+    new_title = draft_data["title"]
+    new_desc = draft_data["description"]
+    html_content = draft_data["content"]
+    image_url = draft_data["image_url"]
+    original_link = draft_data["original_link"]
     current_date = datetime.date.today().strftime("%d/%m/%Y")
+    
+    filename = f"articoli/{slug}.html"
+    
+    banner_html = f'<div style="background:#0284c7; color:#fff; padding:25px; border-radius:10px; text-align:center; margin:35px 0; box-shadow:0 4px 6px rgba(0,0,0,0.1);"><h3 style="margin:0 0 10px 0; font-size:22px;">Non perderti le migliori offerte pet!</h3><p style="margin:0 0 15px 0; font-size:15px;">Unisciti al canale Telegram di Zampamania per sconti e promozioni lampo dedicate a cani e gatti.</p><a href="https://t.me/TUOCANALE" target="_blank" style="background:#fff; color:#0284c7; padding:12px 25px; border-radius:6px; text-decoration:none; font-weight:bold; display:inline-block;">Unisciti al Canale Offerte</a></div>'
+    source_html = f'<div style="text-align:center; margin-top:20px;"><a href="{original_link}" target="_blank" style="color:#94a3b8; font-size:12px; text-decoration:underline;">Fonte originale della notizia</a></div>'
+    
+    full_html_body = html_content + banner_html + source_html
+    article_image_url = f"../{image_url}"
+    featured_image_html = f'<div style="text-align: center; margin-bottom: 25px; aspect-ratio: 16/9; max-height: 450px; overflow: hidden; border-radius: 8px;"><img src="{article_image_url}" alt="{new_title}" style="width: 100%; height: 100%; object-fit: cover;"></div>'
+    full_html_body = featured_image_html + full_html_body
 
-    with open("articoli/template.html", "r", encoding="utf-8") as f:
-        template = f.read()
-
-    article_html = template.replace("{{title}}", new_title).replace("{{description}}", new_desc).replace("{{date}}", current_date).replace("{{content}}", html_content)
+    if os.path.exists("articoli/template.html"):
+        with open("articoli/template.html", "r", encoding="utf-8") as f:
+            template = f.read()
+        article_html = template.replace("{{title}}", new_title).replace("{{description}}", new_desc).replace("{{date}}", current_date).replace("{{content}}", full_html_body)
+    else:
+        article_html = f"<html><head><title>{new_title}</title></head><body><h1>{new_title}</h1>{full_html_body}</body></html>"
 
     with open(filename, "w", encoding="utf-8") as f:
         f.write(article_html)
 
-    # Inserimento nella griglia Magazine della Home
     with open("index.html", "r", encoding="utf-8") as f:
         index_content = f.read()
 
@@ -320,7 +169,148 @@ def main():
         index_content = index_content.replace('<div class="news-feed">', f'<div class="news-feed">\n{new_news_card}')
         with open("index.html", "w", encoding="utf-8") as f:
             f.write(index_content)
-        print("Homepage aggiornata con successo.")
+
+    subprocess.run(["git", "add", "."])
+    subprocess.run(["git", "commit", "-m", f"Pubblicazione articolo approvato: {new_title}"])
+    subprocess.run(["git", "push"])
+    print("Articolo pubblicato e inviato su GitHub con successo!")
+
+def main():
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError("API Key di Gemini non trovata nelle variabili d'ambiente.")
+
+    client = genai.Client(api_key=api_key)
+    used_images = get_existing_images()
+    shuffled_sources = list(RSS_SOURCES)
+    random.shuffle(shuffled_sources)
+
+    selected_entry = None
+    title, summary, original_link, slug = "", "", "", ""
+    found_article = False
+
+    while not found_article and shuffled_sources:
+        rss_url = shuffled_sources.pop(0)
+        try:
+            feed = feedparser.parse(rss_url)
+        except Exception:
+            continue
+        if not feed.entries:
+            continue
+        entries = list(feed.entries)
+        random.shuffle(entries)
+        for entry in entries:
+            entry_title = entry.get('title', '')
+            entry_summary = entry.get('summary', '')
+            temp_slug = slugify(entry_title)
+            if not temp_slug or os.path.exists(f"articoli/{temp_slug}.html"):
+                continue
+            text_to_check = (entry_title + " " + entry_summary).lower()
+            if any(k in text_to_check for k in ['cane', 'cani', 'dog', 'dogs', 'puppy', 'gatto', 'gatti', 'cat', 'cats', 'kitten', 'pet', 'pets']):
+                selected_entry = entry
+                title = entry_title
+                summary = entry_summary
+                original_link = entry.get('link', '#')
+                slug = temp_slug
+                found_article = True
+                break
+
+    if not found_article:
+        raise RuntimeError("Nessun articolo inedito trovato.")
+
+    prompt = f"""
+    Sei il caporedattore senior del magazine online 'Zampamania'. Riscrivi la notizia in un italiano giornalistico eccellente, curato e approfondito.
+    Scrivi almeno 4 o 5 paragrafi dettagliati (<p>), intervallati da almeno 2 sottotitoli (<h2>).
+    Restituisci l'output rigorosamente in questo formato:
+    ===TITOLO===
+    [Titolo in italiano]
+    ===SEO===
+    [Meta description di circa 150 caratteri]
+    ===CONTENUTO===
+    [Il corpo dell'articolo in HTML con tag <p> e <h2>]
+    
+    Titolo originale: {title}
+    Contenuto originale: {summary}
+    """
+
+    response = client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
+    text_response = response.text
+
+    try:
+        parts_title = text_response.split("===SEO===")
+        new_title = parts_title[0].replace("===TITOLO===", "").strip()
+        parts_seo = parts_title[1].split("===CONTENUTO===")
+        new_desc = parts_seo[0].strip()
+        html_content = parts_seo[1].strip()
+    except Exception:
+        new_title = title
+        new_desc = summary[:150]
+        html_content = f"<p>{summary}</p>"
+
+    is_cat = any(k in (new_title + " " + new_desc).lower() for k in ['gatto', 'gatti', 'cat', 'cats', 'kitten', 'micio'])
+    image_url = get_local_pet_image(is_cat_article=is_cat, used_images=used_images)
+
+    draft_data = {
+        "slug": slug,
+        "title": new_title,
+        "description": new_desc,
+        "content": html_content,
+        "image_url": image_url,
+        "original_link": original_link
+    }
+
+    with open("bozza_corrente.json", "w", encoding="utf-8") as f:
+        json.dump(draft_data, f, ensure_ascii=False, indent=4)
+
+    keyboard = {
+        "inline_keyboard": [
+            [{"text": "✅ Approva e Pubblica", "callback_data": "approve"}],
+            [{"text": "❌ Scarta", "callback_data": "discard"}]
+        ]
+    }
+    
+    msg_text = f"<b>Nuova Bozza Generata!</b>\n\n<b>Titolo:</b> {new_title}\n\n<i>Scegli un'azione o scrivi una modifica al titolo in chat:</i>"
+    send_telegram_message(msg_text, reply_markup=keyboard)
+    print("Bozza inviata su Telegram in attesa di approvazione...")
+
+    offset = None
+    while True:
+        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates"
+        if offset:
+            url += f"?offset={offset}"
+        try:
+            res = requests.get(url, timeout=10).json()
+            for result in res.get("result", []):
+                offset = result["update_id"] + 1
+                
+                if "callback_query" in result:
+                    callback = result["callback_query"]
+                    data = callback["data"]
+                    chat_id = callback["message"]["chat"]["id"]
+                    
+                    if str(chat_id) == str(TELEGRAM_CHAT_ID):
+                        if data == "approve":
+                            send_telegram_message("🚀 Approvazione ricevuta! Pubblicazione in corso...")
+                            publish_article(draft_data)
+                            return
+                        elif data == "discard":
+                            send_telegram_message("🗑️ Articolo scartato con successo.")
+                            if os.path.exists("bozza_corrente.json"):
+                                os.remove("bozza_corrente.json")
+                            return
+                            
+                elif "message" in result:
+                    msg = result["message"]
+                    chat_id = msg["chat"]["id"]
+                    if str(chat_id) == str(TELEGRAM_CHAT_ID) and "text" in msg:
+                        new_text = msg["text"]
+                        draft_data["title"] = new_text
+                        with open("bozza_corrente.json", "w", encoding="utf-8") as f:
+                            json.dump(draft_data, f, ensure_ascii=False, indent=4)
+                        send_telegram_message(f"✏️ <b>Titolo aggiornato con successo!</b>\nNuovo titolo: {new_text}\n\nConfermi la pubblicazione?", reply_markup=keyboard)
+        except Exception as e:
+            print(f"Errore nel polling Telegram: {e}")
+        time.sleep(3)
 
 if __name__ == "__main__":
     main()
