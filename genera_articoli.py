@@ -408,7 +408,7 @@ def main():
     publish_article(article_data)
     
     # Invia una notifica di avvenuta pubblicazione su Telegram
-    send_telegram_notification(new_title, slug)
+    # send_telegram_notification(new_title, slug)
 
 if __name__ == "__main__":
     main()
