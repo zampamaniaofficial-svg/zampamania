@@ -57,6 +57,19 @@ RSS_SOURCES = [
     "https://www.GreenMe.it/tag/animali/feed/"
 ]
 
+EXCLUDED_ANIMALS = [
+    'uccello', 'uccelli', 'pappagallo', 'rettili', 'serpente', 'tartaruga', 
+    'cavallo', 'cavalli', 'pesci', 'acquario', 'criceto', 'coniglio', 
+    'ferretto', 'bird', 'birds', 'reptile', 'snake', 'turtle', 'horse', 
+    'fish', 'rabbit', 'hamster', 'ferret'
+]
+
+PROMO_KEYWORDS = [
+    'sponsored', 'sponsorizzato', 'promozionale', 'sconto', 'codice sconto', 
+    'compra ora', 'in collaborazione con', 'recensione prodotto', 'offertissima', 
+    'amazon prime day', 'black friday', 'pubblicità', 'ad'
+]
+
 def slugify(text):
     text = text.lower()
     text = re.sub(r'[^a-z0-9\s-]', '', text)
@@ -75,6 +88,19 @@ def get_existing_images():
         except Exception:
             pass
     return used
+
+def get_rss_image(entry):
+    if 'enclosures' in entry and entry.enclosures:
+        for enc in entry.enclosures:
+            if enc.get('type', '').startswith('image/'):
+                return enc.get('href')
+    if 'media_content' in entry and entry.media_content:
+        for media in entry.media_content:
+            if media.get('medium') == 'image' or media.get('type', '').startswith('image/'):
+                return media.get('url')
+    if 'media_thumbnail' in entry and entry.media_thumbnail:
+        return entry.media_thumbnail[0].get('url')
+    return None
 
 def get_local_pet_image(is_cat_article=False, used_images=None):
     if used_images is None:
@@ -124,7 +150,6 @@ def send_telegram_message(text, reply_markup=None):
     return res_data
 
 def clean_html_for_telegram(html_str):
-    # Converte tag HTML base in formattazione leggibile da Telegram
     text = re.sub(r'<h2>(.*?)</h2>', r'\n\n<b>\1</b>\n', html_str, flags=re.DOTALL)
     text = re.sub(r'<p>(.*?)</p>', r'\1\n\n', html_str, flags=re.DOTALL)
     text = re.sub(r'<[^>]+>', '', text)
@@ -140,7 +165,6 @@ def send_telegram_draft(image_path, title, desc, content):
         ]
     }
 
-    # 1. Invia l'immagine locale
     caption_photo = f"<b>📸 Immagine selezionata:</b> <code>{image_path}</code>\n<b>Titolo:</b> {title}"
     url_photo = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
     
@@ -151,7 +175,6 @@ def send_telegram_draft(image_path, title, desc, content):
     else:
         send_telegram_message(caption_photo)
 
-    # 2. Invia l'intero testo dell'articolo formattato con i pulsanti
     clean_text = clean_html_for_telegram(content)
     full_message = (
         f"<b>📝 Nuova Bozza Generata!</b>\n\n"
@@ -165,23 +188,75 @@ def send_telegram_draft(image_path, title, desc, content):
 
     send_telegram_message(full_message, reply_markup=keyboard)
 
+def archive_old_articles(index_content):
+    cards = re.findall(r'<article class="news-card".*?</article>', index_content, re.DOTALL)
+    today = datetime.date.today()
+
+    for card in cards:
+        date_match = re.search(r'(\d{2}/\d{2}/\d{4})', card)
+        if not date_match:
+            continue
+        
+        card_date_str = date_match.group(1)
+        try:
+            card_date = datetime.datetime.strptime(card_date_str, "%d/%m/%Y").date()
+        except ValueError:
+            continue
+
+        if (today - card_date).days > 7:
+            cleaned_card = card
+            cleaned_card = re.sub(r'<span[^>]*>News</span>', '', cleaned_card)
+            cleaned_card = re.sub(r'<span[^>]*><i class="fa-regular fa-calendar"></i>.*?</span>', '', cleaned_card)
+
+            card_text = re.sub(r'<[^>]+>', '', cleaned_card).lower()
+            if any(k in card_text for k in ['salute', 'benessere', 'veterinario', 'dieta', 'malattia', 'cura', 'alimentazione', 'sintomi']):
+                target_sec = 'salute'
+            elif any(k in card_text for k in ['gatto', 'gatti', 'cat', 'cats', 'micio']):
+                target_sec = 'gatti'
+            elif any(k in card_text for k in ['cane', 'cani', 'dog', 'dogs', 'cucciolo']):
+                target_sec = 'cani'
+            else:
+                target_sec = 'curiosita'
+
+            index_content = index_content.replace(card, '')
+
+            sec_patterns = [
+                f'<div class="feed-{target_sec}">',
+                f'<div id="{target_sec}">',
+                f'<div class="section-{target_sec}">'
+            ]
+            inserted = False
+            for pat in sec_patterns:
+                if pat in index_content:
+                    index_content = index_content.replace(pat, f'{pat}\n{cleaned_card}')
+                    inserted = True
+                    break
+            
+            if not inserted:
+                index_content += f'\n<!-- Section {target_sec} -->\n{cleaned_card}'
+
+    return index_content
+
 def publish_article(draft_data):
     slug = draft_data["slug"]
     new_title = draft_data["title"]
     new_desc = draft_data["description"]
     html_content = draft_data["content"]
     image_url = draft_data["image_url"]
+    is_indicative = draft_data.get("is_indicative", False)
     original_link = draft_data["original_link"]
     current_date = datetime.date.today().strftime("%d/%m/%Y")
     
     filename = f"articoli/{slug}.html"
     
-    banner_html = f'<div style="background:#0284c7; color:#fff; padding:25px; border-radius:10px; text-align:center; margin:35px 0; box-shadow:0 4px 6px rgba(0,0,0,0.1);"><h3 style="margin:0 0 10px 0; font-size:22px;">Non perderti le migliori offerte pet!</h3><p style="margin:0 0 15px 0; font-size:15px;">Unisciti al canale Telegram di Zampamania per sconti e promozioni lampo dedicate a cani e gatti.</p><a href="https://t.me/TUOCANALE" target="_blank" style="background:#fff; color:#0284c7; padding:12px 25px; border-radius:6px; text-decoration:none; font-weight:bold; display:inline-block;">Unisciti al Canale Offerte</a></div>'
+    banner_html = f'<div style="background:#0284c7; color:#fff; padding:25px; border-radius:10px; text-align:center; margin:35px 0; box-shadow:0 4px 6px rgba(0,0,0,0.1);"><h3 style="margin:0 0 10px 0; font-size:22px;">Non perderti le migliori offerte pet!</h3><p style="margin:0 0 15px 0; font-size:15px;">Unisciti al canale Telegram di zampamania.com per sconti e promozioni lampo dedicate a cani e gatti.</p><a href="https://t.me/TUOCANALE" target="_blank" style="background:#fff; color:#0284c7; padding:12px 25px; border-radius:6px; text-decoration:none; font-weight:bold; display:inline-block;">Unisciti al Canale Offerte</a></div>'
     source_html = f'<div style="text-align:center; margin-top:20px;"><a href="{original_link}" target="_blank" style="color:#94a3b8; font-size:12px; text-decoration:underline;">Fonte originale della notizia</a></div>'
     
     full_html_body = html_content + banner_html + source_html
-    article_image_url = f"../{image_url}"
-    featured_image_html = f'<div style="text-align: center; margin-bottom: 25px; aspect-ratio: 16/9; max-height: 450px; overflow: hidden; border-radius: 8px;"><img src="{article_image_url}" alt="{new_title}" style="width: 100%; height: 100%; object-fit: cover;"></div>'
+    article_image_url = image_url if image_url.startswith("http") else f"../{image_url}"
+    
+    indicative_caption = '<p style="text-align: center; font-size: 11px; color: #64748b; margin-top: 4px; font-style: italic;">* Immagine a scopo puramente illustrativo</p>' if is_indicative else ''
+    featured_image_html = f'<div style="text-align: center; margin-bottom: 25px; aspect-ratio: 16/9; max-height: 450px; overflow: hidden; border-radius: 8px;"><img src="{article_image_url}" alt="{new_title}" style="width: 100%; height: 100%; object-fit: cover;"></div>{indicative_caption}'
     full_html_body = featured_image_html + full_html_body
 
     if os.path.exists("articoli/template.html"):
@@ -209,16 +284,18 @@ def publish_article(draft_data):
 
     if '<div class="news-feed">' in index_content:
         index_content = index_content.replace('<div class="news-feed">', f'<div class="news-feed">\n{new_news_card}')
-        with open("index.html", "w", encoding="utf-8") as f:
-            f.write(index_content)
 
-    print("Articolo pubblicato con successo!")
+    index_content = archive_old_articles(index_content)
+
+    with open("index.html", "w", encoding="utf-8") as f:
+        f.write(index_content)
+
+    print("Articolo pubblicato e riorganizzazione sezioni completata!")
 
 def main():
     api_key = os.environ.get("GEMINI_API_KEY")
     dispatch_payload = os.environ.get("DISPATCH_PAYLOAD")
 
-    # Se attivato dal click su Telegram, pubblica la bozza esistente
     if dispatch_payload == "approve":
         print("Ricevuto segnale di approvazione da Telegram...")
         if os.path.exists("bozza_corrente.json"):
@@ -226,7 +303,6 @@ def main():
                 draft_data = json.load(f)
             publish_article(draft_data)
 
-            # Invio conferma su Telegram
             send_telegram_message("🎉 <b>Articolo pubblicato con successo sul sito!</b>")
             
             if os.path.exists("bozza_corrente.json"):
@@ -235,7 +311,6 @@ def main():
             print("Errore: Nessuna bozza trovata da pubblicare.")
         return
 
-    # Flusso standard: generazione della bozza
     if not api_key:
         raise ValueError("API Key di Gemini non trovata nelle variabili d'ambiente.")
 
@@ -247,6 +322,7 @@ def main():
     selected_entry = None
     title, summary, original_link, slug = "", "", "", ""
     found_article = False
+    rss_img_url = None
 
     while not found_article and shuffled_sources:
         rss_url = shuffled_sources.pop(0)
@@ -264,32 +340,51 @@ def main():
             temp_slug = slugify(entry_title)
             if not temp_slug or os.path.exists(f"articoli/{temp_slug}.html"):
                 continue
+            
             text_to_check = (entry_title + " " + entry_summary).lower()
+            
+            # Filtro 1: Esclusione altri animali
+            if any(animal in text_to_check for animal in EXCLUDED_ANIMALS):
+                continue
+
+            # Filtro 2: Esclusione contenuti promozionali/marchi
+            if any(promo in text_to_check for promo in PROMO_KEYWORDS):
+                continue
+
             if any(k in text_to_check for k in ['cane', 'cani', 'dog', 'dogs', 'puppy', 'gatto', 'gatti', 'cat', 'cats', 'kitten', 'pet', 'pets']):
                 selected_entry = entry
                 title = entry_title
                 summary = entry_summary
                 original_link = entry.get('link', '#')
                 slug = temp_slug
+                rss_img_url = get_rss_image(entry)
                 found_article = True
                 break
 
     if not found_article:
-        raise RuntimeError("Nessun articolo inedito trovato.")
+        raise RuntimeError("Nessun articolo inedito valido trovato.")
 
     prompt = f"""
-    Sei il caporedattore senior del magazine online 'Zampamania'. Riscrivi la notizia in un italiano giornalistico eccellente, curato e approfondito.
+    Sei il caporedattore senior del magazine online 'zampamania.com'. Riscrivi la notizia in un italiano giornalistico eccellente, curato e approfondito.
+
+    REGOLE OBBLIGATORIE:
+    1. Se nel testo/fonte originale sono presenti link o riferimenti a fonti esterne, siti o profili social, INCLUDILI mantenendo i link cliccabili tramite tag <a href="..." target="_blank">Nome Fonte/Profilo</a>.
+    2. NON includere o promuovere marchi commerciali o sponsorizzazioni.
+    3. Nella descrizione SEO fai SEMPRE riferimento esplicito a "zampamania.com" (NON usare solo "Zampamania").
+
     Scrivi almeno 4 o 5 paragrafi dettagliati (<p>), intervallati da almeno 2 sottotitoli (<h2>).
+
     Restituisci l'output rigorosamente in questo formato:
     ===TITOLO===
     [Titolo in italiano]
     ===SEO===
-    [Meta description di circa 150 caratteri]
+    [Meta description di circa 150 caratteri che cita zampamania.com]
     ===CONTENUTO===
-    [Il corpo dell'articolo in HTML con tag <p> e <h2>]
-    
+    [Il corpo dell'articolo in HTML con tag <p>, <h2> e eventuali tag <a href="...">]
+
     Titolo originale: {title}
     Contenuto originale: {summary}
+    Link originale: {original_link}
     """
 
     models_to_try = ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-3.5-flash"]
@@ -319,11 +414,17 @@ def main():
         html_content = parts_seo[1].strip()
     except Exception:
         new_title = title
-        new_desc = summary[:150]
+        new_desc = f"Scopri le ultime notizie su zampamania.com: {summary[:120]}..."
         html_content = f"<p>{summary}</p>"
 
     is_cat = any(k in (new_title + " " + new_desc).lower() for k in ['gatto', 'gatti', 'cat', 'cats', 'kitten', 'micio'])
-    image_url = get_local_pet_image(is_cat_article=is_cat, used_images=used_images)
+
+    if rss_img_url:
+        image_url = rss_img_url
+        is_indicative = False
+    else:
+        image_url = get_local_pet_image(is_cat_article=is_cat, used_images=used_images)
+        is_indicative = True
 
     draft_data = {
         "slug": slug,
@@ -331,6 +432,7 @@ def main():
         "description": new_desc,
         "content": html_content,
         "image_url": image_url,
+        "is_indicative": is_indicative,
         "original_link": original_link
     }
 
