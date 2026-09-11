@@ -221,14 +221,12 @@ def archive_old_articles(index_content):
             continue
 
         if (today - card_date).days > 7:
-            # 1. Rimuove l'articolo dalla lista principale
+            # 1. Rimuove l'articolo vecchio dalla sezione News principali
             index_content = index_content.replace(card, '')
 
-            # 2. Pulisce badge News e Data
             cleaned_card = re.sub(r'<span[^>]*>News</span>', '', card)
             cleaned_card = re.sub(r'<span[^>]*><i class="fa-regular fa-calendar"></i>.*?</span>', '', cleaned_card)
 
-            # 3. Riconoscimento categoria
             card_text = re.sub(r'<[^>]+>', '', cleaned_card).lower()
             if any(k in card_text for k in ['salute', 'benessere', 'veterinario', 'dieta', 'malattia', 'cura', 'alimentazione', 'sintomi']):
                 target_sec = 'salute'
@@ -237,33 +235,17 @@ def archive_old_articles(index_content):
             elif any(k in card_text for k in ['cane', 'cani', 'dog', 'dogs', 'cucciolo']):
                 target_sec = 'cani'
             else:
-                target_sec = 'curiosita'  # Default se il testo non matcha nessuna categoria
+                target_sec = 'curiosita'
 
-            # 4. Tentativo di inserimento nella sezione target
-            sec_patterns = [
-                f'<div id="{target_sec}">',
-                f'<section id="{target_sec}">',
-                f'<!-- Section {target_sec} -->'
-            ]
-            
-            inserted = False
-            for pat in sec_patterns:
-                if pat in index_content:
-                    index_content = index_content.replace(pat, f'{pat}\n{cleaned_card}')
-                    inserted = True
-                    break
-
-            # 5. FALLBACK: Se la sezione specifica non viene trovata nell'HTML, inserisce in curiosità
-            if not inserted and target_sec != 'curiosita':
-                fallback_patterns = [
-                    '<div id="curiosita">',
-                    '<section id="curiosita">',
-                    '<!-- Section curiosita -->'
-                ]
-                for pat in fallback_patterns:
-                    if pat in index_content:
-                        index_content = index_content.replace(pat, f'{pat}\n{cleaned_card}')
-                        break
+            # Inserimento nei nuovi contenitori definiti dentro il magazine layout
+            target_id = f'id="{target_sec}-feed"'
+            if target_id in index_content:
+                index_content = index_content.replace(f'<div {target_id} class="news-feed" style="margin-bottom: 40px;">', f'<div {target_id} class="news-feed" style="margin-bottom: 40px;">\n{cleaned_card}')
+            else:
+                # Fallback di sicurezza su curiosità se la sezione non si trova
+                fallback_id = 'id="curiosita-feed"'
+                if fallback_id in index_content:
+                    index_content = index_content.replace(f'<div {fallback_id} class="news-feed" style="margin-bottom: 40px;">', f'<div {fallback_id} class="news-feed" style="margin-bottom: 40px;">\n{cleaned_card}')
 
     return index_content
 
