@@ -1,0 +1,17 @@
+backend:
+  name: github
+  repo: zampamaniaofficial-svg/zampamania
+  branch: main
+
+media_folder: "immagini_cani"
+public_folder: "/immagini_cani"
+
+collections:
+  - name: "articoli"
+  - label: "Articoli"
+  - folder: "articoli"
+  - create: true
+  - fields:
+      - {label: "Titolo", name: "title", widget: "string"}
+      - {label: "Data", name: "date", widget: "datetime"}
+      - {label: "Contenuto", name: "body", widget: "markdown"}
