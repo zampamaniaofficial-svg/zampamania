@@ -224,9 +224,11 @@ def archive_old_articles(index_content):
             # 1. Rimuove l'articolo vecchio dalla sezione News principali
             index_content = index_content.replace(card, '')
 
+            # 2. Rimuove i badge visivi non piu necessari nelle sottosezioni
             cleaned_card = re.sub(r'<span[^>]*>News</span>', '', card)
             cleaned_card = re.sub(r'<span[^>]*><i class="fa-regular fa-calendar"></i>.*?</span>', '', cleaned_card)
 
+            # 3. Classifica la destinazione tematica in base al testo dell'articolo
             card_text = re.sub(r'<[^>]+>', '', cleaned_card).lower()
             if any(k in card_text for k in ['salute', 'benessere', 'veterinario', 'dieta', 'malattia', 'cura', 'alimentazione', 'sintomi']):
                 target_sec = 'salute'
@@ -237,15 +239,16 @@ def archive_old_articles(index_content):
             else:
                 target_sec = 'curiosita'
 
-            # Inserimento nei nuovi contenitori definiti dentro il magazine layout
+            # 4. Inserisce la scheda nell'apposito contenitore HTML tematico
             target_id = f'id="{target_sec}-feed"'
-            if target_id in index_content:
-                index_content = index_content.replace(f'<div {target_id} class="news-feed" style="margin-bottom: 40px;">', f'<div {target_id} class="news-feed" style="margin-bottom: 40px;">\n{cleaned_card}')
+            target_pattern = rf'(<div {target_id} class="news-feed"[^>]*>)'
+            
+            if re.search(target_pattern, index_content):
+                index_content = re.sub(target_pattern, r'\1\n' + cleaned_card, index_content, count=1)
             else:
-                # Fallback di sicurezza su curiosità se la sezione non si trova
-                fallback_id = 'id="curiosita-feed"'
-                if fallback_id in index_content:
-                    index_content = index_content.replace(f'<div {fallback_id} class="news-feed" style="margin-bottom: 40px;">', f'<div {fallback_id} class="news-feed" style="margin-bottom: 40px;">\n{cleaned_card}')
+                fallback_pattern = r'(<div id="curiosita-feed" class="news-feed"[^>]*>)'
+                if re.search(fallback_pattern, index_content):
+                    index_content = re.sub(fallback_pattern, r'\1\n' + cleaned_card, index_content, count=1)
 
     return index_content
 
@@ -404,7 +407,7 @@ def main():
     Link originale: {original_link}
     """
 
-    models_to_try = ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-3.5-flash"]
+    models_to_try = ["gemini-2.5-flash", "gemini-1.5-flash"]
     response = None
     
     for model_name in models_to_try:
