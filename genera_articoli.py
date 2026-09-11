@@ -123,6 +123,48 @@ def send_telegram_message(text, reply_markup=None):
         print(f"ERRORE TELEGRAM: {res_data}")
     return res_data
 
+def clean_html_for_telegram(html_str):
+    # Converte tag HTML base in formattazione leggibile da Telegram
+    text = re.sub(r'<h2>(.*?)</h2>', r'\n\n<b>\1</b>\n', html_str, flags=re.DOTALL)
+    text = re.sub(r'<p>(.*?)</p>', r'\1\n\n', html_str, flags=re.DOTALL)
+    text = re.sub(r'<[^>]+>', '', text)
+    return text.strip()
+
+def send_telegram_draft(image_path, title, desc, content):
+    github_edit_url = "https://github.com/zampamaniaofficial-svg/zampamania/edit/main/bozza_corrente.json"
+    keyboard = {
+        "inline_keyboard": [
+            [{"text": "✅ Approva e Pubblica", "callback_data": "approve"}],
+            [{"text": "✏️ Modifica su GitHub", "url": github_edit_url}],
+            [{"text": "❌ Scarta", "callback_data": "discard"}]
+        ]
+    }
+
+    # 1. Invia l'immagine locale
+    caption_photo = f"<b>📸 Immagine selezionata:</b> <code>{image_path}</code>\n<b>Titolo:</b> {title}"
+    url_photo = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
+    
+    if os.path.exists(image_path):
+        with open(image_path, "rb") as img_file:
+            payload = {"chat_id": TELEGRAM_CHAT_ID, "caption": caption_photo, "parse_mode": "HTML"}
+            requests.post(url_photo, data=payload, files={"photo": img_file})
+    else:
+        send_telegram_message(caption_photo)
+
+    # 2. Invia l'intero testo dell'articolo formattato con i pulsanti
+    clean_text = clean_html_for_telegram(content)
+    full_message = (
+        f"<b>📝 Nuova Bozza Generata!</b>\n\n"
+        f"<b>Titolo:</b> {title}\n\n"
+        f"<b>Descrizione SEO:</b>\n<i>{desc}</i>\n\n"
+        f"<b>📄 Contenuto Articolo:</b>\n{clean_text}"
+    )
+    
+    if len(full_message) > 4000:
+        full_message = full_message[:3950] + "\n\n<i>...(Testo troncato per limiti di lunghezza Telegram)</i>"
+
+    send_telegram_message(full_message, reply_markup=keyboard)
+
 def publish_article(draft_data):
     slug = draft_data["slug"]
     new_title = draft_data["title"]
@@ -291,15 +333,7 @@ def main():
     with open("bozza_corrente.json", "w", encoding="utf-8") as f:
         json.dump(draft_data, f, ensure_ascii=False, indent=4)
 
-    keyboard = {
-        "inline_keyboard": [
-            [{"text": "✅ Approva e Pubblica", "callback_data": "approve"}],
-            [{"text": "❌ Scarta", "callback_data": "discard"}]
-        ]
-    }
-    
-    msg_text = f"<b>Nuova Bozza Generata!</b>\n\n<b>Titolo:</b> {new_title}\n\n<i>Scegli un'azione:</i>"
-    send_telegram_message(msg_text, reply_markup=keyboard)
+    send_telegram_draft(image_url, new_title, new_desc, html_content)
     print("Bozza inviata su Telegram in attesa di approvazione. Esecuzione terminata correttamente.")
 
 if __name__ == "__main__":
