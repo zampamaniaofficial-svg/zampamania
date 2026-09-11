@@ -2,11 +2,10 @@ name: Genera e Pubblica Articoli
 
 on:
   schedule:
-    - cron: '0 7 * * *'   # Mattina (07:00 UTC / 09:00 ora italiana)
-    - cron: '0 15 * * *'  # Pomeriggio (15:00 UTC / 17:00 ora italiana)
-  workflow_dispatch:      # Consente l'avvio manuale
-  repository_dispatch:
-    types: [telegram_action]
+    - cron: '0 5 * * *'   # 07:00 ora italiana (ora legale CEST, UTC+2)
+    - cron: '0 10 * * *'  # 12:00 ora italiana (ora legale CEST, UTC+2)
+    - cron: '0 16 * * *'  # 18:00 ora italiana (ora legale CEST, UTC+2)
+  workflow_dispatch:      # Consente l'avvio manuale dal pannello GitHub
 
 jobs:
   build:
@@ -30,9 +29,6 @@ jobs:
       - name: Run article generator script
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          DISPATCH_PAYLOAD: ${{ github.event.client_payload.payload }}
         run: |
           python genera_articoli.py
 
