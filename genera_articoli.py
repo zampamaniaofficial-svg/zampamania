@@ -12,12 +12,15 @@ from google import genai
 socket.setdefaulttimeout(15)
 
 # Caricamento delle credenziali dal file separato config.json
+# Caricamento delle credenziali da ambiente o da config.json
 CONFIG_FILE = "config.json"
+config = {}
 if os.path.exists(CONFIG_FILE):
     with open(CONFIG_FILE, "r", encoding="utf-8") as f:
         config = json.load(f)
-        TELEGRAM_BOT_TOKEN = config.get("telegram_bot_token", "")
-        TELEGRAM_CHAT_ID = config.get("telegram_chat_id", "")
+
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN") or config.get("telegram_bot_token", "")
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID") or config.get("telegram_chat_id", "")
 else:
     TELEGRAM_BOT_TOKEN = ""
     TELEGRAM_CHAT_ID = ""
