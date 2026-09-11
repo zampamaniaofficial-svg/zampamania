@@ -118,7 +118,10 @@ def send_telegram_message(text, reply_markup=None):
     if reply_markup:
         payload["reply_markup"] = json.dumps(reply_markup)
     response = requests.post(url, json=payload)
-    return response.json()
+    res_data = response.json()
+    if not res_data.get("ok"):
+        print(f"ERRORE TELEGRAM: {res_data}")
+    return res_data
 
 def publish_article(draft_data):
     slug = draft_data["slug"]
