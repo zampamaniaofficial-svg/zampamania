@@ -11,7 +11,7 @@ from google import genai
 # Timeout globale di sicurezza sulle connessioni di rete
 socket.setdefaulttimeout(15)
 
-# Caricamento delle credenziali dal file separato config.json
+# Caricamento credenziali da config.json se presente
 CONFIG_FILE = "config.json"
 config = {}
 if os.path.exists(CONFIG_FILE):
@@ -151,59 +151,22 @@ def get_local_pet_image(is_cat_article=False, used_images=None):
         return random.choice(all_images)
     return f"{cat_folder}/default.jpg" if is_cat_article else f"{dog_folder}/default.jpg"
 
-def send_telegram_message(text, reply_markup=None):
+def send_telegram_notification(title, slug):
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        return
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    article_url = f"https://zampamania.com/articoli/{slug}.html"
+    text = f"🚀 <b>Nuovo articolo pubblicato!</b>\n\n<b>{title}</b>\n\n👉 <a href='{article_url}'>Leggi l'articolo sul sito</a>"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
         "text": text,
-        "parse_mode": "HTML"
+        "parse_mode": "HTML",
+        "disable_web_page_preview": False
     }
-    if reply_markup:
-        payload["reply_markup"] = json.dumps(reply_markup)
-    response = requests.post(url, json=payload)
-    res_data = response.json()
-    if not res_data.get("ok"):
-        print(f"ERRORE TELEGRAM: {res_data}")
-    return res_data
-
-def clean_html_for_telegram(html_str):
-    text = re.sub(r'<h2>(.*?)</h2>', r'\n\n<b>\1</b>\n', html_str, flags=re.DOTALL)
-    text = re.sub(r'<p>(.*?)</p>', r'\1\n\n', html_str, flags=re.DOTALL)
-    text = re.sub(r'<[^>]+>', '', text)
-    return text.strip()
-
-def send_telegram_draft(image_path, title, desc, content):
-    github_edit_url = "https://github.com/zampamaniaofficial-svg/zampamania/edit/main/bozza_corrente.json"
-    keyboard = {
-        "inline_keyboard": [
-            [{"text": "✅ Approva e Pubblica", "callback_data": "approve"}],
-            [{"text": "✏️ Modifica su GitHub", "url": github_edit_url}],
-            [{"text": "❌ Scarta", "callback_data": "discard"}]
-        ]
-    }
-
-    caption_photo = f"<b>📸 Immagine selezionata:</b> <code>{image_path}</code>\n<b>Titolo:</b> {title}"
-    url_photo = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
-    
-    if os.path.exists(image_path):
-        with open(image_path, "rb") as img_file:
-            payload = {"chat_id": TELEGRAM_CHAT_ID, "caption": caption_photo, "parse_mode": "HTML"}
-            requests.post(url_photo, data=payload, files={"photo": img_file})
-    else:
-        send_telegram_message(caption_photo)
-
-    clean_text = clean_html_for_telegram(content)
-    full_message = (
-        f"<b>📝 Nuova Bozza Generata!</b>\n\n"
-        f"<b>Titolo:</b> {title}\n\n"
-        f"<b>Descrizione SEO:</b>\n<i>{desc}</i>\n\n"
-        f"<b>📄 Contenuto Articolo:</b>\n{clean_text}"
-    )
-    
-    if len(full_message) > 4000:
-        full_message = full_message[:3950] + "\n\n<i>...(Testo troncato per limiti di lunghezza Telegram)</i>"
-
-    send_telegram_message(full_message, reply_markup=keyboard)
+    try:
+        requests.post(url, json=payload)
+    except Exception as e:
+        print(f"Errore nell'invio della notifica Telegram: {e}")
 
 def archive_old_articles(index_content):
     cards = re.findall(r'<article class="news-card".*?</article>', index_content, re.DOTALL)
@@ -221,14 +184,11 @@ def archive_old_articles(index_content):
             continue
 
         if (today - card_date).days > 7:
-            # 1. Rimuove l'articolo vecchio dalla sezione News principali
             index_content = index_content.replace(card, '')
 
-            # 2. Rimuove i badge visivi non piu necessari nelle sottosezioni
             cleaned_card = re.sub(r'<span[^>]*>News</span>', '', card)
             cleaned_card = re.sub(r'<span[^>]*><i class="fa-regular fa-calendar"></i>.*?</span>', '', cleaned_card)
 
-            # 3. Classifica la destinazione tematica in base al testo dell'articolo
             card_text = re.sub(r'<[^>]+>', '', cleaned_card).lower()
             if any(k in card_text for k in ['salute', 'benessere', 'veterinario', 'dieta', 'malattia', 'cura', 'alimentazione', 'sintomi']):
                 target_sec = 'salute'
@@ -239,7 +199,6 @@ def archive_old_articles(index_content):
             else:
                 target_sec = 'curiosita'
 
-            # 4. Inserisce la scheda nell'apposito contenitore HTML tematico
             target_id = f'id="{target_sec}-feed"'
             target_pattern = rf'(<div {target_id} class="news-feed"[^>]*>)'
             
@@ -252,14 +211,14 @@ def archive_old_articles(index_content):
 
     return index_content
 
-def publish_article(draft_data):
-    slug = draft_data["slug"]
-    new_title = draft_data["title"]
-    new_desc = draft_data["description"]
-    html_content = draft_data["content"]
-    image_url = draft_data["image_url"]
-    is_indicative = draft_data.get("is_indicative", False)
-    original_link = draft_data["original_link"]
+def publish_article(article_data):
+    slug = article_data["slug"]
+    new_title = article_data["title"]
+    new_desc = article_data["description"]
+    html_content = article_data["content"]
+    image_url = article_data["image_url"]
+    is_indicative = article_data.get("is_indicative", False)
+    original_link = article_data["original_link"]
     current_date = datetime.date.today().strftime("%d/%m/%Y")
     
     filename = f"articoli/{slug}.html"
@@ -309,23 +268,6 @@ def publish_article(draft_data):
 
 def main():
     api_key = os.environ.get("GEMINI_API_KEY")
-    dispatch_payload = os.environ.get("DISPATCH_PAYLOAD")
-
-    if dispatch_payload == "approve":
-        print("Ricevuto segnale di approvazione da Telegram...")
-        if os.path.exists("bozza_corrente.json"):
-            with open("bozza_corrente.json", "r", encoding="utf-8") as f:
-                draft_data = json.load(f)
-            publish_article(draft_data)
-
-            send_telegram_message("🎉 <b>Articolo pubblicato con successo sul sito!</b>")
-            
-            if os.path.exists("bozza_corrente.json"):
-                os.remove("bozza_corrente.json")
-        else:
-            print("Errore: Nessuna bozza trovata da pubblicare.")
-        return
-
     if not api_key:
         raise ValueError("API Key di Gemini non trovata nelle variabili d'ambiente.")
 
@@ -357,17 +299,14 @@ def main():
             entry_link = entry.get('link', '').strip()
             temp_slug = slugify(entry_title)
             
-            # Controllo duplicato: sia su slug file che su URL fonte originale
             if not temp_slug or os.path.exists(f"articoli/{temp_slug}.html") or entry_link in used_links:
                 continue
             
             text_to_check = (entry_title + " " + entry_summary).lower()
             
-            # Filtro 1: Esclusione altri animali
             if any(animal in text_to_check for animal in EXCLUDED_ANIMALS):
                 continue
 
-            # Filtro 2: Esclusione contenuti promozionali/marchi
             if any(promo in text_to_check for promo in PROMO_KEYWORDS):
                 continue
 
@@ -455,7 +394,7 @@ def main():
         image_url = get_local_pet_image(is_cat_article=is_cat, used_images=used_images)
         is_indicative = True
 
-    draft_data = {
+    article_data = {
         "slug": slug,
         "title": new_title,
         "description": new_desc,
@@ -465,11 +404,11 @@ def main():
         "original_link": original_link
     }
 
-    with open("bozza_corrente.json", "w", encoding="utf-8") as f:
-        json.dump(draft_data, f, ensure_ascii=False, indent=4)
-
-    send_telegram_draft(image_url, new_title, new_desc, html_content)
-    print("Bozza inviata su Telegram in attesa di approvazione. Esecuzione terminata correttamente.")
+    # Pubblica subito l'articolo generando l'HTML e aggiornando index.html
+    publish_article(article_data)
+    
+    # Invia una notifica di avvenuta pubblicazione su Telegram
+    send_telegram_notification(new_title, slug)
 
 if __name__ == "__main__":
     main()
