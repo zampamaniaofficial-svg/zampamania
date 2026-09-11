@@ -225,6 +225,10 @@ def main():
             with open("bozza_corrente.json", "r", encoding="utf-8") as f:
                 draft_data = json.load(f)
             publish_article(draft_data)
+
+            # Invio conferma su Telegram
+            send_telegram_message("🎉 <b>Articolo pubblicato con successo sul sito!</b>")
+            
             if os.path.exists("bozza_corrente.json"):
                 os.remove("bozza_corrente.json")
         else:
