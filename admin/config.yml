@@ -1,17 +1,18 @@
 backend:
-  name: github
-  repo: zampamaniaofficial-svg/zampamania
-  branch: main
+  name: git-gateway
+  branch: main # Sostituisci con 'master' se il tuo branch principale si chiama così
 
-media_folder: "immagini_cani"
-public_folder: "/immagini_cani"
+media_folder: "images/uploads"
+public_folder: "/images/uploads"
 
 collections:
   - name: "articoli"
-    label: "Articoli"
-    folder: "articoli"
+    label: "Articoli Blog"
+    folder: "articoli" # La cartella del repository in cui risiedono i file degli articoli
     create: true
+    slug: "{{year}}-{{month}}-{{day}}-{{slug}}"
     fields:
-      - {label: "Titolo", name: "title", widget: "string"}
-      - {label: "Data", name: "date", widget: "datetime"}
-      - {label: "Contenuto", name: "body", widget: "markdown"}
+      - { label: "Titolo", name: "title", widget: "string" }
+      - { label: "Data", name: "date", widget: "datetime" }
+      - { label: "Immagine di Copertina", name: "image", widget: "image", required: false }
+      - { label: "Contenuto", name: "body", widget: "markdown" }
