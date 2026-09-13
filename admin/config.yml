@@ -1,6 +1,6 @@
 backend:
   name: github
-  repo: TUO_UTENTE_GITHUB/NOME_REPOSITORY # Es: zampamania/zampamania-website
+  repo: zampamaniaofficial-svg/zampamania # Es: zampamania/zampamania-website
   branch: main
 
 # Gestione Media Predefinita
