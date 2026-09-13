@@ -1,18 +1,24 @@
 backend:
-  name: git-gateway
-  branch: main # Sostituisci con 'master' se il tuo branch principale si chiama così
+  name: github
+  repo: TUO_UTENTE_GITHUB/NOME_REPOSITORY # Es: zampamania/zampamania-website
+  branch: main
 
-media_folder: "images/uploads"
-public_folder: "/images/uploads"
+# Gestione Media Predefinita
+media_folder: "immagini_cani"
+public_folder: "/immagini_cani"
 
 collections:
   - name: "articoli"
-    label: "Articoli Blog"
-    folder: "articoli" # La cartella del repository in cui risiedono i file degli articoli
+    label: "Articoli"
+    folder: "articoli"
     create: true
-    slug: "{{year}}-{{month}}-{{day}}-{{slug}}"
+    slug: "{{slug}}"
+    extension: "html"
+    format: "raw"
     fields:
       - { label: "Titolo", name: "title", widget: "string" }
-      - { label: "Data", name: "date", widget: "datetime" }
-      - { label: "Immagine di Copertina", name: "image", widget: "image", required: false }
+      - { label: "Data Pubblicazione", name: "date", widget: "datetime", date_format: "DD/MM/YYYY", time_format: false }
+      - { label: "Descrizione SEO / Meta", name: "description", widget: "text" }
+      - { label: "Immagine Cane", name: "image_cani", widget: "image", required: false, media_folder: "immagini_cani", public_folder: "/immagini_cani" }
+      - { label: "Immagine Gatto", name: "image_gatti", widget: "image", required: false, media_folder: "immagini_gatti", public_folder: "/immagini_gatti" }
       - { label: "Contenuto", name: "body", widget: "markdown" }
